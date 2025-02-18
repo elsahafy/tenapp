@@ -1,20 +1,20 @@
 'use client'
 
-import { Fragment, useState } from 'react'
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
+import { supabase } from '@/lib/supabase'
 import { Dialog, Transition } from '@headlessui/react'
 import {
-  Bars3Icon,
-  XMarkIcon,
-  HomeIcon,
-  WalletIcon,
   ArrowsRightLeftIcon,
-  ChartBarIcon,
   BanknotesIcon,
+  Bars3Icon,
+  ChartBarIcon,
+  HomeIcon,
   TagIcon,
+  WalletIcon
 } from '@heroicons/react/24/outline'
-import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { Fragment, useState } from 'react'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
@@ -35,7 +35,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[var(--background-primary)]">
       {/* Mobile sidebar */}
       <Transition.Root show={sidebarOpen} as={Fragment}>
         <Dialog as="div" className="relative z-50 lg:hidden" onClose={setSidebarOpen}>
@@ -48,7 +48,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             leaveFrom="opacity-100"
             leaveTo="opacity-0"
           >
-            <div className="fixed inset-0 bg-gray-900/80" />
+            <div className="fixed inset-0 bg-[var(--gray-900)]/80" />
           </Transition.Child>
 
           <div className="fixed inset-0 flex">
@@ -62,14 +62,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               leaveTo="-translate-x-full"
             >
               <Dialog.Panel className="relative mr-16 flex w-full max-w-xs flex-1">
-                <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-white border-r border-gray-200 px-6 pb-4">
-                  <div className="flex h-16 shrink-0 items-center border-b border-gray-100">
+                <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-[var(--background-primary)] border-r border-[var(--border-primary)] px-6 pb-4">
+                  <div className="flex h-16 shrink-0 items-center justify-between border-b border-[var(--border-primary)]">
                     <Link href="/dashboard" className="flex items-center gap-2">
-                      <img src="/logo.svg" alt="TenApp Logo" className="h-8 w-8" />
-                      <span className="text-lg font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
+                      <img src="/logo.svg" alt="TenApp Logo" className="h-6 w-6" />
+                      <span className="text-lg font-bold text-[var(--text-primary)]">
                         TenApp
                       </span>
                     </Link>
+                    <ThemeToggle />
                   </div>
                   <nav className="flex flex-1 flex-col">
                     <ul role="list" className="flex flex-1 flex-col gap-y-7">
@@ -79,10 +80,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             <li key={item.name}>
                               <Link
                                 href={item.href}
-                                className="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold hover:bg-gray-50"
+                                className="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-[var(--text-primary)] hover:bg-[var(--background-secondary)]"
                               >
                                 <item.icon
-                                  className="h-5 w-5 shrink-0 text-gray-500 group-hover:text-primary-600"
+                                  className="h-5 w-5 shrink-0 text-[var(--text-secondary)] group-hover:text-[var(--primary-600)]"
                                   aria-hidden="true"
                                 />
                                 {item.name}
@@ -94,7 +95,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       <li className="mt-auto">
                         <button
                           onClick={handleSignOut}
-                          className="group -mx-2 flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-700 hover:bg-gray-50 hover:text-red-600"
+                          className="group -mx-2 flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-[var(--text-primary)] hover:bg-[var(--background-secondary)] hover:text-[var(--error-600)]"
                         >
                           <span className="truncate">Sign out</span>
                         </button>
@@ -110,14 +111,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Static sidebar for desktop */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
-        <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-white border-r border-gray-200 px-6 pb-4">
-          <div className="flex h-16 shrink-0 items-center border-b border-gray-100">
+        <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-[var(--background-primary)] border-r border-[var(--border-primary)] px-6 pb-4">
+          <div className="flex h-16 shrink-0 items-center justify-between border-b border-[var(--border-primary)]">
             <Link href="/dashboard" className="flex items-center gap-2">
-              <img src="/logo.svg" alt="TenApp Logo" className="h-8 w-8" />
-              <span className="text-lg font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
+              <img src="/logo.svg" alt="TenApp Logo" className="h-6 w-6" />
+              <span className="text-lg font-bold text-[var(--text-primary)]">
                 TenApp
               </span>
             </Link>
+            <ThemeToggle />
           </div>
           <nav className="flex flex-1 flex-col">
             <ul role="list" className="flex flex-1 flex-col gap-y-7">
@@ -127,10 +129,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <li key={item.name}>
                       <Link
                         href={item.href}
-                        className="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold hover:bg-gray-50"
+                        className="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-[var(--text-primary)] hover:bg-[var(--background-secondary)]"
                       >
                         <item.icon
-                          className="h-5 w-5 shrink-0 text-gray-500 group-hover:text-primary-600"
+                          className="h-5 w-5 shrink-0 text-[var(--text-secondary)] group-hover:text-[var(--primary-600)]"
                           aria-hidden="true"
                         />
                         {item.name}
@@ -142,7 +144,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <li className="mt-auto">
                 <button
                   onClick={handleSignOut}
-                  className="group -mx-2 flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-gray-700 hover:bg-gray-50 hover:text-red-600"
+                  className="group -mx-2 flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 text-[var(--text-primary)] hover:bg-[var(--background-secondary)] hover:text-[var(--error-600)]"
                 >
                   <span className="truncate">Sign out</span>
                 </button>
@@ -153,21 +155,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
 
       {/* Mobile header */}
-      <div className="sticky top-0 z-40 flex items-center gap-x-6 bg-white px-4 py-4 shadow-sm sm:px-6 lg:hidden">
+      <div className="sticky top-0 z-40 flex items-center gap-x-6 bg-[var(--background-primary)] px-4 py-4 shadow-sm border-b border-[var(--border-primary)] sm:px-6 lg:hidden">
         <button
           type="button"
-          className="-m-2.5 p-2.5 text-gray-700 lg:hidden"
+          className="-m-2.5 p-2.5 text-[var(--text-primary)] lg:hidden"
           onClick={() => setSidebarOpen(true)}
         >
           <span className="sr-only">Open sidebar</span>
           <Bars3Icon className="h-6 w-6" aria-hidden="true" />
         </button>
-        <div className="flex-1 text-sm font-semibold leading-6 text-gray-900">
+        <div className="flex-1 text-sm font-semibold leading-6 text-[var(--text-primary)]">
           <Link href="/dashboard" className="flex items-center gap-2">
             <img src="/logo.svg" alt="TenApp Logo" className="h-6 w-6" />
             <span>TenApp</span>
           </Link>
         </div>
+        <ThemeToggle />
       </div>
 
       {/* Main content */}

@@ -3,17 +3,19 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 const cardVariants = cva(
-  'rounded-2xl transition-all duration-200',
+  'rounded-lg transition-all duration-200',
   {
     variants: {
       variant: {
-        default: 'bg-white border border-gray-200',
-        gradient: 'bg-gradient-to-br from-white to-gray-50 border border-gray-100',
-        elevated: 'bg-white shadow-lg hover:shadow-xl border border-gray-100',
+        default: 'bg-[var(--background-primary)] border border-[var(--border-primary)] shadow-sm hover:shadow-md',
+        secondary: 'bg-[var(--background-secondary)] border border-[var(--border-secondary)]',
+        outline: 'border border-[var(--border-primary)] bg-transparent',
+        ghost: 'border-none bg-transparent',
       },
       padding: {
         default: 'p-6',
         large: 'p-8',
+        small: 'p-4',
         none: '',
       }
     },
@@ -40,10 +42,10 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
           {...props}
         >
           <div className="animate-pulse space-y-4">
-            <div className="h-4 bg-gray-200 rounded-full w-3/4"></div>
+            <div className="h-4 bg-[var(--gray-200)] rounded-full w-3/4"></div>
             <div className="space-y-2">
-              <div className="h-4 bg-gray-200 rounded-full"></div>
-              <div className="h-4 bg-gray-200 rounded-full w-5/6"></div>
+              <div className="h-4 bg-[var(--gray-200)] rounded-full"></div>
+              <div className="h-4 bg-[var(--gray-200)] rounded-full w-5/6"></div>
             </div>
           </div>
         </div>
@@ -69,7 +71,7 @@ const CardHeader = forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn('flex flex-col space-y-1.5', className)}
+    className={cn('flex flex-col space-y-1.5 pb-4', className)}
     {...props}
   />
 ))
@@ -82,7 +84,7 @@ const CardTitle = forwardRef<
   <h3
     ref={ref}
     className={cn(
-      'text-2xl font-bold leading-none tracking-tight bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent',
+      'text-lg font-semibold text-[var(--text-primary)]',
       className
     )}
     {...props}
@@ -96,7 +98,7 @@ const CardDescription = forwardRef<
 >(({ className, ...props }, ref) => (
   <p
     ref={ref}
-    className={cn('text-sm text-gray-500', className)}
+    className={cn('text-sm text-[var(--text-secondary)]', className)}
     {...props}
   />
 ))
@@ -116,7 +118,7 @@ const CardFooter = forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn('flex items-center pt-4', className)}
+    className={cn('flex items-center pt-4 border-t border-[var(--border-primary)]', className)}
     {...props}
   />
 ))

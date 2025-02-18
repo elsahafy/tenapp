@@ -68,32 +68,32 @@ export function RecentTransactions() {
   }, [])
 
   return (
-    <Card variant="gradient" className="h-full">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
+    <Card className="h-full bg-white shadow-sm border border-gray-100">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
         <div className="space-y-1">
-          <CardTitle>Recent Transactions</CardTitle>
+          <CardTitle className="text-lg font-semibold">Recent Transactions</CardTitle>
           <p className="text-sm text-gray-500">Your latest financial activity</p>
         </div>
-        <Badge variant="secondary">
+        <Badge variant="secondary" className="bg-blue-50 text-blue-600 hover:bg-blue-100">
           Last {transactions.length} transactions
         </Badge>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
+        <div className="space-y-3">
           {loading ? (
             Array.from({ length: 5 }).map((_, i) => (
               <div
                 key={i}
-                className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100"
+                className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100"
               >
-                <div className="flex items-center space-x-4">
-                  <Skeleton className="h-10 w-10 rounded-lg" />
-                  <div className="space-y-2">
+                <div className="flex items-center space-x-3">
+                  <Skeleton className="h-8 w-8 rounded-lg" />
+                  <div className="space-y-1.5">
                     <Skeleton className="h-4 w-24" />
                     <Skeleton className="h-3 w-16" />
                   </div>
                 </div>
-                <Skeleton className="h-6 w-24" />
+                <Skeleton className="h-5 w-20" />
               </div>
             ))
           ) : (
@@ -102,41 +102,36 @@ export function RecentTransactions() {
                 <div
                   key={transaction.id}
                   className={cn(
-                    'group flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100',
-                    'transition-all duration-200 hover:shadow-lg hover:border-primary-100',
-                    'opacity-0 translate-y-2 animate-in'
+                    'group flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100',
+                    'transition-all duration-200 hover:shadow-sm hover:border-blue-100'
                   )}
-                  style={{
-                    animationDelay: `${index * 100}ms`,
-                    animationFillMode: 'forwards'
-                  }}
                 >
-                  <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-3">
                     <div className={cn(
-                      'flex-shrink-0 p-2.5 rounded-lg transition-colors duration-200',
+                      'flex-shrink-0 p-2 rounded-lg transition-colors duration-200',
                       transaction.type === 'expense'
-                        ? 'bg-red-50 text-red-500'
-                        : 'bg-green-50 text-green-500'
+                        ? 'bg-red-50 text-red-600'
+                        : 'bg-emerald-50 text-emerald-600'
                     )}>
                       {transaction.type === 'expense' ? (
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 20V4m0 16l4-4m-4 4l-4-4" />
                         </svg>
                       ) : (
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m0-16l4 4m-4-4l-4 4" />
                         </svg>
                       )}
                     </div>
                     <div className="space-y-1">
-                      <p className="text-sm font-medium text-gray-900 group-hover:text-primary-600 transition-colors">
+                      <p className="text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
                         {transaction.description}
                       </p>
-                      <div className="flex items-center space-x-2">
-                        <Badge variant="secondary">
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="secondary" className="text-xs px-1.5 py-0.5 bg-gray-50 text-gray-600">
                           {transaction.account?.name}
                         </Badge>
-                        <Badge variant="outline" className="capitalize">
+                        <Badge variant="secondary" className="text-xs px-1.5 py-0.5 bg-gray-50 text-gray-600 capitalize">
                           {transaction.categories?.name || 'Uncategorized'}
                         </Badge>
                       </div>
@@ -144,22 +139,22 @@ export function RecentTransactions() {
                   </div>
                   <div className="text-right">
                     <div className={cn(
-                      'text-sm font-bold',
-                      transaction.type === 'expense' ? 'text-red-600' : 'text-green-600'
+                      'text-sm font-medium',
+                      transaction.type === 'expense' ? 'text-red-600' : 'text-emerald-600'
                     )}>
                       {transaction.type === 'expense' ? '-' : '+'}
                       {formatCurrency(Math.abs(transaction.amount), transaction.account?.currency || 'USD')}
                     </div>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 mt-0.5">
                       {new Date(transaction.date).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
               ))}
               {transactions.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <div className="mb-4 rounded-full bg-gray-50 p-3">
-                    <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <div className="mb-3 rounded-full bg-blue-50 p-2">
+                    <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
                   </div>

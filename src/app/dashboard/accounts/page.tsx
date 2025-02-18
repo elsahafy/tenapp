@@ -1,12 +1,11 @@
 'use client'
 
-import { Suspense } from 'react'
-import DashboardLayout from '@/components/layout/DashboardLayout'
 import { AccountList } from '@/components/accounts/AccountList'
+import { CreateAccountModal } from '@/components/accounts/CreateAccountModal'
+import DashboardLayout from '@/components/layout/DashboardLayout'
 import { useAccounts } from '@/lib/hooks/useAccounts'
 import { PlusIcon } from '@heroicons/react/24/outline'
-import { CreateAccountModal } from '@/components/accounts/CreateAccountModal'
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 
 export default function AccountsPage() {
   const { accounts, loading, error } = useAccounts()

@@ -2,13 +2,63 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+@layer base {
+  :root {
+    --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+  }
+
+  html {
+    @apply antialiased;
+  }
+
+  body {
+    @apply bg-[var(--background-primary)] text-[var(--text-primary)] transition-colors duration-200;
+  }
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-end-rgb));
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-[var(--background-secondary)];
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-[var(--gray-300)] rounded-full hover:bg-[var(--gray-400)] transition-colors;
+}
+
+/* Dark mode scrollbar */
+.dark ::-webkit-scrollbar-track {
+  @apply bg-[var(--background-secondary)];
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  @apply bg-[var(--gray-600)] hover:bg-[var(--gray-500)];
+}
+
+/* Selection styles */
+::selection {
+  @apply bg-[var(--primary-100)] text-[var(--primary-900)];
+}
+
+.dark ::selection {
+  @apply bg-[var(--primary-900)] text-[var(--primary-100)];
+}
+
+/* Focus outline styles */
+:focus-visible {
+  @apply outline-none ring-2 ring-[var(--primary-500)] ring-offset-2 ring-offset-[var(--background-primary)];
+}
+
+.dark :focus-visible {
+  @apply ring-offset-[var(--background-primary)];
 }

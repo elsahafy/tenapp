@@ -3,16 +3,53 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+  `
+    inline-flex items-center justify-center rounded-lg text-sm font-medium
+    transition-colors duration-200 
+    focus-visible:outline-none focus-visible:ring-2 
+    focus-visible:ring-[var(--primary-500)] 
+    focus-visible:ring-offset-2
+    focus-visible:ring-offset-[var(--background-primary)]
+    disabled:pointer-events-none disabled:opacity-50
+  `,
   {
     variants: {
       variant: {
-        default: 'bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800',
-        destructive: 'bg-error-600 text-white hover:bg-error-700 active:bg-error-800',
-        outline: 'border border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 active:bg-gray-100',
-        secondary: 'bg-secondary-100 text-secondary-900 hover:bg-secondary-200 active:bg-secondary-300',
-        ghost: 'hover:bg-gray-50 active:bg-gray-100',
-        link: 'text-primary-600 underline-offset-4 hover:underline',
+        default: `
+          bg-[var(--primary-600)] text-white 
+          hover:bg-[var(--primary-700)] 
+          active:bg-[var(--primary-800)]
+        `,
+        secondary: `
+          bg-[var(--background-secondary)] text-[var(--text-primary)]
+          hover:bg-[var(--background-tertiary)]
+          active:bg-[var(--gray-200)]
+        `,
+        outline: `
+          border border-[var(--border-primary)] bg-transparent
+          text-[var(--text-primary)]
+          hover:bg-[var(--background-secondary)]
+          active:bg-[var(--background-tertiary)]
+        `,
+        ghost: `
+          text-[var(--text-primary)]
+          hover:bg-[var(--background-secondary)]
+          active:bg-[var(--background-tertiary)]
+        `,
+        destructive: `
+          bg-[var(--error-600)] text-white
+          hover:bg-[var(--error-700)]
+          active:bg-[var(--error-800)]
+        `,
+        success: `
+          bg-[var(--success-600)] text-white
+          hover:bg-[var(--success-700)]
+          active:bg-[var(--success-800)]
+        `,
+        link: `
+          text-[var(--primary-600)] underline-offset-4
+          hover:underline
+        `,
       },
       size: {
         default: 'h-10 px-4 py-2',
@@ -53,7 +90,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
             role="status"
           >
             <svg
-              className="h-4 w-4 animate-spin text-white"
+              className="h-4 w-4 animate-spin text-current"
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"

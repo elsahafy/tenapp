@@ -24,12 +24,12 @@ interface SpendingByCategory {
 }
 
 const chartColors = [
-  { from: '#f87171', to: '#ef4444' }, // Red
-  { from: '#60a5fa', to: '#3b82f6' }, // Blue
-  { from: '#fbbf24', to: '#f59e0b' }, // Yellow
-  { from: '#34d399', to: '#10b981' }, // Green
-  { from: '#a78bfa', to: '#8b5cf6' }, // Purple
-  { from: '#f472b6', to: '#ec4899' }, // Pink
+  { from: '#3b82f6', to: '#2563eb' }, // Blue
+  { from: '#10b981', to: '#059669' }, // Green
+  { from: '#f59e0b', to: '#d97706' }, // Yellow
+  { from: '#ef4444', to: '#dc2626' }, // Red
+  { from: '#8b5cf6', to: '#7c3aed' }, // Purple
+  { from: '#ec4899', to: '#db2777' }, // Pink
 ]
 
 export function SpendingOverview() {
@@ -121,21 +121,21 @@ export function SpendingOverview() {
   }
 
   return (
-    <Card variant="gradient" className="h-full">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
+    <Card className="h-full bg-white shadow-sm border border-gray-100">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
         <div className="space-y-1">
-          <CardTitle>Spending Overview</CardTitle>
+          <CardTitle className="text-lg font-semibold">Spending Overview</CardTitle>
           <p className="text-sm text-gray-500">Last 30 days spending by category</p>
         </div>
-        <Badge variant="secondary">
+        <Badge variant="secondary" className="bg-blue-50 text-blue-600 hover:bg-blue-100">
           Total: {loading ? '--' : formatCurrency(totalSpending, 'USD')}
         </Badge>
       </CardHeader>
       <CardContent>
         {loading ? (
-          <div className="space-y-8">
-            <Skeleton className="h-64 w-64 rounded-full mx-auto" />
-            <div className="space-y-3">
+          <div className="space-y-6">
+            <Skeleton className="h-48 w-48 rounded-full mx-auto" />
+            <div className="space-y-2">
               {Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="flex items-center justify-between">
                   <Skeleton className="h-4 w-24" />
@@ -145,32 +145,28 @@ export function SpendingOverview() {
             </div>
           </div>
         ) : (
-          <div className="space-y-8">
-            <div className="relative w-64 h-64 mx-auto">
+          <div className="space-y-6">
+            <div className="relative w-48 h-48 mx-auto">
               <Doughnut data={chartData} options={chartOptions} />
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900">
+                  <div className="text-xl font-bold text-gray-900">
                     {spendingData.length}
                   </div>
-                  <div className="text-sm text-gray-500">Categories</div>
+                  <div className="text-xs text-gray-500">Categories</div>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-2">
               {spendingData.map((category, index) => (
                 <div
                   key={category.name}
-                  className="flex items-center justify-between transition-all duration-200 ease-in-out opacity-0 translate-y-2 animate-in"
-                  style={{
-                    animationDelay: `${index * 100}ms`,
-                    animationFillMode: 'forwards'
-                  }}
+                  className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors duration-200"
                 >
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-2">
                     <div 
-                      className="w-3 h-3 rounded-full"
+                      className="w-2.5 h-2.5 rounded-full"
                       style={{ backgroundColor: chartColors[index % chartColors.length].from }}
                     />
                     <span className="text-sm font-medium text-gray-700">
@@ -178,7 +174,7 @@ export function SpendingOverview() {
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <span className="text-sm font-semibold text-gray-900">
+                    <span className="text-sm font-medium text-gray-900">
                       {formatCurrency(category.total, 'USD')}
                     </span>
                     <span className="text-xs text-gray-500">
@@ -192,9 +188,9 @@ export function SpendingOverview() {
         )}
 
         {!loading && spendingData.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="mb-4 rounded-full bg-gray-50 p-3">
-              <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <div className="mb-3 rounded-full bg-blue-50 p-2">
+              <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
             </div>

@@ -22,9 +22,9 @@ const insightConfig = {
       </svg>
     ),
     colors: {
-      low: 'text-blue-500 bg-blue-50',
-      medium: 'text-amber-500 bg-amber-50',
-      high: 'text-red-500 bg-red-50'
+      low: 'text-blue-600 bg-blue-50',
+      medium: 'text-blue-600 bg-blue-50',
+      high: 'text-blue-600 bg-blue-50'
     }
   },
   saving: {
@@ -34,9 +34,9 @@ const insightConfig = {
       </svg>
     ),
     colors: {
-      low: 'text-green-500 bg-green-50',
-      medium: 'text-green-500 bg-green-50',
-      high: 'text-green-500 bg-green-50'
+      low: 'text-blue-600 bg-blue-50',
+      medium: 'text-blue-600 bg-blue-50',
+      high: 'text-blue-600 bg-blue-50'
     }
   },
   investment: {
@@ -46,9 +46,9 @@ const insightConfig = {
       </svg>
     ),
     colors: {
-      low: 'text-purple-500 bg-purple-50',
-      medium: 'text-purple-500 bg-purple-50',
-      high: 'text-purple-500 bg-purple-50'
+      low: 'text-blue-600 bg-blue-50',
+      medium: 'text-blue-600 bg-blue-50',
+      high: 'text-blue-600 bg-blue-50'
     }
   },
   debt: {
@@ -58,9 +58,9 @@ const insightConfig = {
       </svg>
     ),
     colors: {
-      low: 'text-gray-500 bg-gray-50',
-      medium: 'text-amber-500 bg-amber-50',
-      high: 'text-red-500 bg-red-50'
+      low: 'text-blue-600 bg-blue-50',
+      medium: 'text-blue-600 bg-blue-50',
+      high: 'text-blue-600 bg-blue-50'
     }
   }
 }
@@ -132,28 +132,28 @@ export function AIInsights() {
   }
 
   return (
-    <Card variant="gradient" className="h-full">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
+    <Card className="h-full bg-white shadow-sm border border-gray-100">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
         <div className="flex items-center space-x-3">
-          <div className="p-2 bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl">
-            <LightBulbIcon className="h-5 w-5 text-amber-500" />
+          <div className="p-2 bg-blue-50 rounded-lg">
+            <LightBulbIcon className="h-4 w-4 text-blue-600" />
           </div>
           <div className="space-y-1">
-            <CardTitle>AI Insights</CardTitle>
+            <CardTitle className="text-lg font-semibold">AI Insights</CardTitle>
             <p className="text-sm text-gray-500">Smart financial recommendations</p>
           </div>
         </div>
-        <Badge variant="secondary">
+        <Badge variant="secondary" className="bg-blue-50 text-blue-600 hover:bg-blue-100">
           {insights.length} {insights.length === 1 ? 'Insight' : 'Insights'}
         </Badge>
       </CardHeader>
       <CardContent>
         {loading ? (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="flex items-start space-x-4">
+              <div key={i} className="flex items-start space-x-3">
                 <Skeleton className="h-8 w-8 rounded-lg flex-shrink-0" />
-                <div className="flex-1 space-y-2">
+                <div className="flex-1 space-y-1.5">
                   <Skeleton className="h-4 w-24" />
                   <Skeleton className="h-3 w-full" />
                 </div>
@@ -161,19 +161,12 @@ export function AIInsights() {
             ))}
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {insights.length > 0 ? (
               insights.map((insight, index) => (
                 <div
                   key={index}
-                  className={cn(
-                    'group flex items-start space-x-4 p-4 rounded-xl border transition-all duration-200',
-                    insight.priority === 'high'
-                      ? 'bg-red-50/50 border-red-100 hover:border-red-200'
-                      : insight.priority === 'medium'
-                      ? 'bg-amber-50/50 border-amber-100 hover:border-amber-200'
-                      : 'bg-blue-50/50 border-blue-100 hover:border-blue-200'
-                  )}
+                  className="group flex items-start space-x-3 p-3 rounded-lg bg-white border border-gray-100 hover:border-blue-100 hover:shadow-sm transition-all duration-200"
                 >
                   <div className={cn(
                     'flex-shrink-0 p-2 rounded-lg transition-colors duration-200',
@@ -192,9 +185,9 @@ export function AIInsights() {
                 </div>
               ))
             ) : (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="mb-4 rounded-full bg-gray-50 p-3">
-                  <LightBulbIcon className="h-6 w-6 text-gray-400" />
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <div className="mb-3 rounded-full bg-blue-50 p-2">
+                  <LightBulbIcon className="h-5 w-5 text-blue-600" />
                 </div>
                 <p className="text-gray-500 text-sm">No insights available at the moment</p>
               </div>
