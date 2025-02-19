@@ -13,7 +13,7 @@ type CurrencyCode = Database['public']['Enums']['currency_code']
 
 interface EditAccountModalProps {
   isOpen: boolean
-  account: Account
+  account?: Account
   onClose: () => void
   onSave: () => Promise<void>
 }
@@ -24,14 +24,17 @@ export function EditAccountModal({
   onClose,
   onSave,
 }: EditAccountModalProps) {
-  const [name, setName] = useState(account.name)
-  const [type, setType] = useState<AccountType>(account.type)
-  const [currency, setCurrency] = useState<CurrencyCode>(account.currency)
-  const [currentBalance, setCurrentBalance] = useState(account.current_balance.toString())
-  const [creditLimit, setCreditLimit] = useState(account.credit_limit?.toString() || '')
-  const [interestRate, setInterestRate] = useState(account.interest_rate?.toString() || '')
-  const [dueDate, setDueDate] = useState(account.due_date?.toString() || '')
-  const [institution, setInstitution] = useState(account.institution || '')
+  const [name, setName] = useState(account?.name ?? '')
+  const [type, setType] = useState<AccountType>(account?.type ?? 'checking')
+  const [currency, setCurrency] = useState<CurrencyCode>(account?.currency ?? 'AED')
+  const [currentBalance, setCurrentBalance] = useState(account?.current_balance?.toString() ?? '0')
+  const [creditLimit, setCreditLimit] = useState(account?.credit_limit?.toString() ?? '')
+  const [interestRate, setInterestRate] = useState(account?.interest_rate?.toString() ?? '')
+  const [dueDate, setDueDate] = useState(account?.due_date?.toString() ?? '')
+  const [minPaymentAmount, setMinPaymentAmount] = useState(account?.min_payment_amount?.toString() ?? '')
+  const [minPaymentPercentage, setMinPaymentPercentage] = useState(account?.min_payment_percentage?.toString() ?? '')
+  const [emiEnabled, setEmiEnabled] = useState(account?.emi_enabled ?? false)
+  const [institution, setInstitution] = useState(account?.institution ?? '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -51,13 +54,17 @@ export function EditAccountModal({
           credit_limit: creditLimit ? parseFloat(creditLimit) : null,
           interest_rate: interestRate ? parseFloat(interestRate) : null,
           due_date: dueDate ? parseInt(dueDate) : null,
+          min_payment_amount: minPaymentAmount ? parseFloat(minPaymentAmount) : null,
+          min_payment_percentage: minPaymentPercentage ? parseFloat(minPaymentPercentage) : null,
+          emi_enabled: type === 'credit_card' ? emiEnabled : false,
           institution: institution || null,
           updated_at: new Date().toISOString()
         })
-        .eq('id', account.id)
+        .eq('id', account?.id)
 
       if (updateError) throw updateError
       await onSave()
+      onClose()
     } catch (err) {
       console.error('Update account error:', err)
       setError(err instanceof Error ? err.message : 'Failed to update account')
@@ -167,6 +174,7 @@ export function EditAccountModal({
                           <option value="BHD">BHD</option>
                           <option value="KWD">KWD</option>
                           <option value="OMR">OMR</option>
+                          <option value="EGP">EGP</option>
                         </select>
                       </div>
 
@@ -187,60 +195,104 @@ export function EditAccountModal({
                       </div>
 
                       {type === 'credit_card' && (
-                        <div>
-                          <label htmlFor="creditLimit" className="block text-sm font-medium text-gray-700">
-                            Credit Limit
-                          </label>
-                          <input
-                            type="number"
-                            name="creditLimit"
-                            id="creditLimit"
-                            value={creditLimit}
-                            onChange={(e) => setCreditLimit(e.target.value)}
-                            step="0.01"
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                          />
-                        </div>
-                      )}
+                        <>
+                          <div>
+                            <label htmlFor="creditLimit" className="block text-sm font-medium text-gray-700">
+                              Credit Limit
+                            </label>
+                            <input
+                              type="number"
+                              name="creditLimit"
+                              id="creditLimit"
+                              value={creditLimit}
+                              onChange={(e) => setCreditLimit(e.target.value)}
+                              step="0.01"
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                            />
+                          </div>
 
-                      {(type === 'loan' || type === 'savings') && (
-                        <div>
-                          <label htmlFor="interestRate" className="block text-sm font-medium text-gray-700">
-                            Interest Rate (%)
-                          </label>
-                          <input
-                            type="number"
-                            name="interestRate"
-                            id="interestRate"
-                            value={interestRate}
-                            onChange={(e) => setInterestRate(e.target.value)}
-                            step="0.01"
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                          />
-                        </div>
-                      )}
+                          <div>
+                            <label htmlFor="interestRate" className="block text-sm font-medium text-gray-700">
+                              Interest Rate (% APR)
+                            </label>
+                            <input
+                              type="number"
+                              name="interestRate"
+                              id="interestRate"
+                              value={interestRate}
+                              onChange={(e) => setInterestRate(e.target.value)}
+                              step="0.01"
+                              min="0"
+                              max="100"
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                            />
+                          </div>
 
-                      {(type === 'credit_card' || type === 'loan') && (
-                        <div>
-                          <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700">
-                            Due Date (Day of Month)
-                          </label>
-                          <input
-                            type="number"
-                            name="dueDate"
-                            id="dueDate"
-                            value={dueDate}
-                            onChange={(e) => {
-                              const value = parseInt(e.target.value)
-                              if (value >= 1 && value <= 31) {
-                                setDueDate(e.target.value)
-                              }
-                            }}
-                            min="1"
-                            max="31"
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                          />
-                        </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label htmlFor="minPaymentAmount" className="block text-sm font-medium text-gray-700">
+                                Minimum Payment Amount
+                              </label>
+                              <input
+                                type="number"
+                                name="minPaymentAmount"
+                                id="minPaymentAmount"
+                                value={minPaymentAmount}
+                                onChange={(e) => setMinPaymentAmount(e.target.value)}
+                                step="0.01"
+                                min="0"
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                              />
+                            </div>
+
+                            <div>
+                              <label htmlFor="minPaymentPercentage" className="block text-sm font-medium text-gray-700">
+                                Minimum Payment (%)
+                              </label>
+                              <input
+                                type="number"
+                                name="minPaymentPercentage"
+                                id="minPaymentPercentage"
+                                value={minPaymentPercentage}
+                                onChange={(e) => setMinPaymentPercentage(e.target.value)}
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700">
+                              Due Date (Day of Month)
+                            </label>
+                            <input
+                              type="number"
+                              name="dueDate"
+                              id="dueDate"
+                              value={dueDate}
+                              onChange={(e) => setDueDate(e.target.value)}
+                              min="1"
+                              max="31"
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                            />
+                          </div>
+
+                          <div className="flex items-center">
+                            <input
+                              type="checkbox"
+                              name="emiEnabled"
+                              id="emiEnabled"
+                              checked={emiEnabled}
+                              onChange={(e) => setEmiEnabled(e.target.checked)}
+                              className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                            />
+                            <label htmlFor="emiEnabled" className="ml-2 block text-sm text-gray-700">
+                              Enable EMI (Equated Monthly Installment)
+                            </label>
+                          </div>
+                        </>
                       )}
 
                       <div>
@@ -261,18 +313,7 @@ export function EditAccountModal({
                         <div className="rounded-md bg-red-50 p-4">
                           <div className="flex">
                             <div className="flex-shrink-0">
-                              <svg
-                                className="h-5 w-5 text-red-400"
-                                viewBox="0 0 20 20"
-                                fill="currentColor"
-                                aria-hidden="true"
-                              >
-                                <path
-                                  fillRule="evenodd"
-                                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
+                              <XMarkIcon className="h-5 w-5 text-red-400" aria-hidden="true" />
                             </div>
                             <div className="ml-3">
                               <h3 className="text-sm font-medium text-red-800">{error}</h3>
@@ -285,14 +326,14 @@ export function EditAccountModal({
                         <button
                           type="submit"
                           disabled={loading}
-                          className="inline-flex w-full justify-center rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 sm:ml-3 sm:w-auto"
+                          className="inline-flex w-full justify-center rounded-md bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 sm:ml-3 sm:w-auto"
                         >
                           {loading ? 'Saving...' : 'Save Changes'}
                         </button>
                         <button
                           type="button"
-                          onClick={onClose}
                           className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
+                          onClick={onClose}
                         >
                           Cancel
                         </button>

@@ -44,11 +44,18 @@ export function AccountSummary() {
         // Only calculate total balance if we have preferences and accounts
         if (!prefsLoading && preferences.preferredCurrency) {
           const total = fetchedAccounts.reduce((sum, account) => {
+            // Convert the balance to the preferred currency
             const convertedBalance = convertCurrency(
               account.current_balance,
               account.currency,
               preferences.preferredCurrency
             )
+            
+            // For credit cards, subtract the balance since it represents debt
+            if (account.type === 'credit_card') {
+              return sum - convertedBalance
+            }
+            
             return sum + convertedBalance
           }, 0)
           setTotalBalance(total)
@@ -156,11 +163,16 @@ export function AccountSummary() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-lg font-medium text-gray-900">
+                      <p className={cn(
+                        "text-lg font-medium",
+                        account.type === 'credit_card' ? 'text-red-600' : 'text-gray-900'
+                      )}>
+                        {account.type === 'credit_card' ? '-' : ''}
                         {formatCurrencyWithCode(convertedBalance, preferences.preferredCurrency)}
                       </p>
                       {account.currency !== preferences.preferredCurrency && (
                         <p className="mt-1 text-sm text-gray-500">
+                          {account.type === 'credit_card' ? '-' : ''}
                           {formatCurrencyWithCode(account.current_balance, account.currency)}
                         </p>
                       )}
