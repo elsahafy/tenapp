@@ -4,10 +4,10 @@ import { useState } from 'react'
 import { formatCurrency, formatTimeAgo } from '@/lib/utils/format'
 import { ArrowUpIcon, ArrowDownIcon } from '@heroicons/react/24/outline'
 
-interface Transaction {
+export interface Transaction {
   id: string
   amount: number
-  description: string
+  description: string | null
   category: string
   type: 'income' | 'expense'
   created_at: string
@@ -77,7 +77,7 @@ export default function TopTransactions({ transactions, onTransactionClick }: To
               </div>
               <div>
                 <div className="font-medium text-gray-900">
-                  {transaction.description}
+                  {transaction.description || 'Untitled Transaction'}
                 </div>
                 <div className="text-sm text-gray-500">
                   {transaction.category} • {formatTimeAgo(transaction.created_at)}

@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js'
 import { Doughnut } from 'react-chartjs-2'
 import { cn, formatCurrency } from '@/lib/utils'
+import { Amount } from '@/components/ui/amount'
 
 ChartJS.register(ArcElement, Tooltip, Legend)
 
@@ -124,11 +125,11 @@ export function SpendingOverview() {
     <Card className="h-full bg-white shadow-sm border border-gray-100">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
         <div className="space-y-1">
-          <CardTitle className="text-lg font-semibold">Spending Overview</CardTitle>
+          <h2 className="text-xl font-semibold">Spending Overview</h2>
           <p className="text-sm text-gray-500">Last 30 days spending by category</p>
         </div>
         <Badge variant="secondary" className="bg-blue-50 text-blue-600 hover:bg-blue-100">
-          Total: {loading ? '--' : formatCurrency(totalSpending, 'USD')}
+          Total: {loading ? '--' : <Amount value={totalSpending} />}
         </Badge>
       </CardHeader>
       <CardContent>
@@ -175,7 +176,7 @@ export function SpendingOverview() {
                   </div>
                   <div className="flex items-center space-x-2">
                     <span className="text-sm font-medium text-gray-900">
-                      {formatCurrency(category.total, 'USD')}
+                      <Amount value={category.total} />
                     </span>
                     <span className="text-xs text-gray-500">
                       ({((category.total / totalSpending) * 100).toFixed(1)}%)

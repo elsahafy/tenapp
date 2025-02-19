@@ -1,3 +1,4 @@
+import { CurrencyProvider } from '@/lib/hooks/useCurrency'
 import { ThemeProvider } from '@/lib/theme/ThemeProvider'
 import { Metadata } from 'next'
 import { Inter } from 'next/font/google'
@@ -10,7 +11,7 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://tenapp.com'),
+  metadataBase: new URL('https://moneyonly,net'),
   title: {
     default: 'TenApp - Personal Finance Dashboard',
     template: '%s | TenApp',
@@ -101,17 +102,19 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <ThemeProvider>
-          <div className="min-h-screen bg-[var(--background-primary)]">
-            <a
-              href="#main-content"
-              className="sr-only focus:not-sr-only focus:fixed focus:z-50 focus:p-4 focus:bg-[var(--background-primary)] focus:text-[var(--text-primary)]"
-            >
-              Skip to main content
-            </a>
-            <main id="main-content" role="main" className="relative">
-              {children}
-            </main>
-          </div>
+          <CurrencyProvider>
+            <div className="min-h-screen bg-[var(--background-primary)]">
+              <a
+                href="#main-content"
+                className="sr-only focus:not-sr-only focus:fixed focus:z-50 focus:p-4 focus:bg-[var(--background-primary)] focus:text-[var(--text-primary)]"
+              >
+                Skip to main content
+              </a>
+              <main id="main-content" role="main" className="relative">
+                {children}
+              </main>
+            </div>
+          </CurrencyProvider>
         </ThemeProvider>
         <noscript>
           <div

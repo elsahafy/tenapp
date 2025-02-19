@@ -1,6 +1,6 @@
 'use client'
 
-import { AccountList } from '@/components/accounts/AccountList'
+import AccountList from '@/components/accounts/AccountList'
 import { CreateAccountModal } from '@/components/accounts/CreateAccountModal'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import { useAccounts } from '@/lib/hooks/useAccounts'
@@ -8,7 +8,7 @@ import { PlusIcon } from '@heroicons/react/24/outline'
 import { Suspense, useState } from 'react'
 
 export default function AccountsPage() {
-  const { accounts, loading, error } = useAccounts()
+  const { accounts, loading, error, refetch } = useAccounts()
   const [showCreateModal, setShowCreateModal] = useState(false)
 
   return (
@@ -70,7 +70,7 @@ export default function AccountsPage() {
             </div>
           ) : (
             <Suspense fallback={<div>Loading...</div>}>
-              <AccountList accounts={accounts || []} />
+              <AccountList accounts={accounts || []} onRefresh={refetch} />
             </Suspense>
           )}
         </div>
@@ -79,7 +79,8 @@ export default function AccountsPage() {
       {showCreateModal && (
         <CreateAccountModal
           onClose={() => setShowCreateModal(false)}
-          onSave={() => {
+          onSave={async () => {
+            await refetch()
             setShowCreateModal(false)
           }}
         />

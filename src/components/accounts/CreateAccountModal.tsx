@@ -4,12 +4,12 @@ import { Fragment, useState } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { supabase } from '@/lib/supabase-client'
-import type { Database } from '@/lib/types/database'
+import type { Database } from '@/types/supabase'
 
 type Tables = Database['public']['Tables']
 type Account = Tables['accounts']['Row']
-type AccountType = 'checking' | 'savings' | 'investment' | 'credit_card' | 'loan' | 'cash'
-type CurrencyCode = 'USD' | 'EUR' | 'GBP' | 'AED' | 'SAR' | 'QAR' | 'BHD' | 'KWD' | 'OMR'
+type AccountType = Database['public']['Enums']['account_type']
+type CurrencyCode = Database['public']['Enums']['currency_code']
 
 interface CreateAccountModalProps {
   onClose: () => void
@@ -25,7 +25,6 @@ export function CreateAccountModal({ onClose, onSave }: CreateAccountModalProps)
   const [interestRate, setInterestRate] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [institution, setInstitution] = useState('')
-  const [accountNumber, setAccountNumber] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -45,14 +44,12 @@ export function CreateAccountModal({ onClose, onSave }: CreateAccountModalProps)
           name,
           type,
           currency,
-          balance: parseFloat(currentBalance),
           current_balance: parseFloat(currentBalance),
           credit_limit: creditLimit ? parseFloat(creditLimit) : null,
           interest_rate: interestRate ? parseFloat(interestRate) : null,
-          due_date: dueDate ? parseInt(dueDate, 10) : null,
+          due_date: dueDate ? parseInt(dueDate) : null,
           is_active: true,
-          institution,
-          account_number: accountNumber,
+          institution: institution || null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
@@ -60,6 +57,7 @@ export function CreateAccountModal({ onClose, onSave }: CreateAccountModalProps)
       if (createError) throw createError
       onSave()
     } catch (err) {
+      console.error('Create account error:', err)
       setError(err instanceof Error ? err.message : 'Failed to create account')
     } finally {
       setLoading(false)
@@ -167,17 +165,18 @@ export function CreateAccountModal({ onClose, onSave }: CreateAccountModalProps)
                           <option value="BHD">BHD</option>
                           <option value="KWD">KWD</option>
                           <option value="OMR">OMR</option>
+                          <option value="EGP">EGP</option>
                         </select>
                       </div>
 
                       <div>
-                        <label htmlFor="balance" className="block text-sm font-medium text-gray-700">
+                        <label htmlFor="currentBalance" className="block text-sm font-medium text-gray-700">
                           Current Balance
                         </label>
                         <input
                           type="number"
-                          name="balance"
-                          id="balance"
+                          name="currentBalance"
+                          id="currentBalance"
                           value={currentBalance}
                           onChange={(e) => setCurrentBalance(e.target.value)}
                           required
@@ -223,14 +222,21 @@ export function CreateAccountModal({ onClose, onSave }: CreateAccountModalProps)
                       {(type === 'credit_card' || type === 'loan') && (
                         <div>
                           <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700">
-                            Due Date
+                            Due Date (Day of Month)
                           </label>
                           <input
-                            type="date"
+                            type="number"
                             name="dueDate"
                             id="dueDate"
                             value={dueDate}
-                            onChange={(e) => setDueDate(e.target.value)}
+                            onChange={(e) => {
+                              const value = parseInt(e.target.value)
+                              if (value >= 1 && value <= 31) {
+                                setDueDate(e.target.value)
+                              }
+                            }}
+                            min="1"
+                            max="31"
                             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                           />
                         </div>
@@ -246,21 +252,6 @@ export function CreateAccountModal({ onClose, onSave }: CreateAccountModalProps)
                           id="institution"
                           value={institution}
                           onChange={(e) => setInstitution(e.target.value)}
-                          required
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                        />
-                      </div>
-
-                      <div>
-                        <label htmlFor="accountNumber" className="block text-sm font-medium text-gray-700">
-                          Account Number
-                        </label>
-                        <input
-                          type="text"
-                          name="accountNumber"
-                          id="accountNumber"
-                          value={accountNumber}
-                          onChange={(e) => setAccountNumber(e.target.value)}
                           required
                           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                         />
@@ -300,8 +291,8 @@ export function CreateAccountModal({ onClose, onSave }: CreateAccountModalProps)
                         </button>
                         <button
                           type="button"
-                          className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
                           onClick={onClose}
+                          className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
                         >
                           Cancel
                         </button>

@@ -8,7 +8,12 @@ import DebtPayoffHistory from './DebtPayoffHistory'
 import type { Database } from '@/lib/database.types'
 
 type Tables = Database['public']['Tables']
-type Account = Tables['accounts']['Row']
+type Account = Omit<Tables['accounts']['Row'], 'is_active' | 'institution'> & {
+  balance: number;
+  account_number: string;
+  is_active: boolean;
+  institution: string;
+}
 
 interface DebtAccountListProps {
   accounts: Account[]

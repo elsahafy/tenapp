@@ -8,6 +8,7 @@ import {
   BanknotesIcon,
   Bars3Icon,
   ChartBarIcon,
+  Cog6ToothIcon,
   HomeIcon,
   TagIcon,
   WalletIcon
@@ -23,6 +24,7 @@ const navigation = [
   { name: 'Analytics', href: '/dashboard/analytics', icon: ChartBarIcon },
   { name: 'Debts', href: '/dashboard/debts', icon: BanknotesIcon },
   { name: 'Goals', href: '/dashboard/goals', icon: TagIcon },
+  { name: 'Settings', href: '/dashboard/settings', icon: Cog6ToothIcon },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

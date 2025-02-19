@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase-client'
-import type { Database } from '@/lib/types/database'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/supabase'
 
 type Tables = Database['public']['Tables']
 type Account = Tables['accounts']['Row']
@@ -25,9 +24,17 @@ export function useAccounts(): UseAccountsResult {
       setLoading(true)
       setError(null)
 
-      const { data, error: fetchError } = await (supabase as SupabaseClient)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setAccounts(null)
+        return
+      }
+
+      const { data, error: fetchError } = await supabase
         .from('accounts')
         .select('*')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
         .order('name')
 
       if (fetchError) throw fetchError

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Line } from 'react-chartjs-2'
+import { Amount } from '@/components/ui/amount'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -197,140 +198,118 @@ export function PayoffCalculator() {
         ticks: {
           callback: function(value) {
             if (typeof value === 'number') {
-              return `$${value.toLocaleString()}`
+              return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                currencyDisplay: 'narrowSymbol'
+              }).format(value)
             }
             return value
           }
-        },
-      },
-    },
+        }
+      }
+    }
   }
 
   if (loading) {
-    return (
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6">
-          <div className="animate-pulse space-y-4">
-            <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-            <div className="space-y-3">
-              <div className="h-64 bg-gray-100 rounded"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
+    return <div>Loading...</div>
   }
 
   return (
-    <div className="bg-white rounded-lg shadow">
-      <div className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-base font-semibold text-gray-900">
-            Debt Payoff Calculator
-          </h2>
+    <div className="bg-white rounded-lg shadow p-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div className="bg-primary-50 rounded-lg p-4">
+          <h3 className="text-sm font-medium text-gray-500">Total Debt</h3>
+          <p className="mt-1 text-lg font-semibold text-gray-900">
+            <Amount value={debts.reduce((sum, debt) => sum + debt.current_balance, 0)} currency="USD" />
+          </p>
         </div>
+        <div className="bg-green-50 rounded-lg p-4">
+          <h3 className="text-sm font-medium text-gray-500">Monthly Payment</h3>
+          <p className="mt-1 text-lg font-semibold text-gray-900">
+            <Amount value={selectedStrategyData?.monthlyPayment || 0} currency="USD" />
+          </p>
+        </div>
+        <div className="bg-blue-50 rounded-lg p-4">
+          <h3 className="text-sm font-medium text-gray-500">Total Interest</h3>
+          <p className="mt-1 text-lg font-semibold text-gray-900">
+            <Amount value={selectedStrategyData?.totalInterest || 0} currency="USD" />
+          </p>
+        </div>
+      </div>
 
-        <div className="space-y-6">
-          <div>
-            <label
-              htmlFor="extraPayment"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Extra Monthly Payment
-            </label>
-            <div className="relative mt-1 rounded-md shadow-sm">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                <span className="text-gray-500 sm:text-sm">$</span>
-              </div>
-              <input
-                type="number"
-                id="extraPayment"
-                value={extraPayment}
-                onChange={(e) => setExtraPayment(Number(e.target.value))}
-                className="block w-full rounded-md border-gray-300 pl-7 pr-12 focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                placeholder="0.00"
-                min="0"
-                step="10"
-              />
-            </div>
+      <div className="mb-6">
+        <label htmlFor="extraPayment" className="block text-sm font-medium text-gray-700">
+          Extra Monthly Payment
+        </label>
+        <div className="mt-1 relative rounded-md shadow-sm">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <span className="text-gray-500 sm:text-sm">$</span>
           </div>
+          <input
+            type="number"
+            name="extraPayment"
+            id="extraPayment"
+            className="focus:ring-primary-500 focus:border-primary-500 block w-full pl-7 pr-12 sm:text-sm border-gray-300 rounded-md"
+            placeholder="0.00"
+            value={extraPayment}
+            onChange={(e) => setExtraPayment(Number(e.target.value))}
+          />
+        </div>
+      </div>
 
-          <div>
-            <label
-              htmlFor="strategy"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Payoff Strategy
-            </label>
-            <select
-              id="strategy"
-              value={selectedStrategy}
-              onChange={(e) => setSelectedStrategy(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-            >
-              <option value="snowball">Debt Snowball (Smallest Balance First)</option>
-              <option value="avalanche">
-                Debt Avalanche (Highest Interest First)
-              </option>
-            </select>
-          </div>
+      <div className="mb-6">
+        <div className="flex space-x-4">
+          <button
+            onClick={() => setSelectedStrategy('snowball')}
+            className={`px-4 py-2 rounded-md ${
+              selectedStrategy === 'snowball'
+                ? 'bg-primary-600 text-white'
+                : 'bg-gray-100 text-gray-700'
+            }`}
+          >
+            Snowball Method
+          </button>
+          <button
+            onClick={() => setSelectedStrategy('avalanche')}
+            className={`px-4 py-2 rounded-md ${
+              selectedStrategy === 'avalanche'
+                ? 'bg-primary-600 text-white'
+                : 'bg-gray-100 text-gray-700'
+            }`}
+          >
+            Avalanche Method
+          </button>
+        </div>
+      </div>
 
-          {selectedStrategyData && (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div className="rounded-lg bg-gray-50 p-4">
-                <h3 className="text-sm font-medium text-gray-500">
-                  Monthly Payment
-                </h3>
-                <p className="mt-2 text-lg font-semibold text-gray-900">
-                  ${selectedStrategyData.monthlyPayment.toLocaleString()}
-                </p>
-              </div>
-              <div className="rounded-lg bg-gray-50 p-4">
-                <h3 className="text-sm font-medium text-gray-500">
-                  Total Interest
-                </h3>
-                <p className="mt-2 text-lg font-semibold text-gray-900">
-                  ${selectedStrategyData.totalInterest.toLocaleString()}
-                </p>
-              </div>
-              <div className="rounded-lg bg-gray-50 p-4">
-                <h3 className="text-sm font-medium text-gray-500">Payoff Date</h3>
-                <p className="mt-2 text-lg font-semibold text-gray-900">
-                  {format(selectedStrategyData.payoffDate, 'MMM yyyy')}
-                </p>
-              </div>
-            </div>
-          )}
+      <div className="h-96">
+        <Line options={chartOptions} data={chartData} />
+      </div>
 
-          <div className="h-96">
-            <Line data={chartData} options={chartOptions} />
-          </div>
-
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h3 className="text-sm font-medium text-gray-900 mb-2">
-              Strategy Comparison
-            </h3>
-            <div className="space-y-4">
-              {strategies.map((strategy) => (
-                <div key={strategy.method} className="flex justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      {strategy.name}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      Payoff by {format(strategy.payoffDate, 'MMM yyyy')}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">
-                      ${strategy.totalInterest.toLocaleString()}
-                    </p>
-                    <p className="text-sm text-gray-500">Total Interest</p>
-                  </div>
+      <div className="mt-6">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Debt Details</h3>
+        <div className="space-y-4">
+          {debts.map((debt) => (
+            <div key={debt.id} className="bg-gray-50 rounded-lg p-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h4 className="text-sm font-medium text-gray-900">{debt.name}</h4>
+                  <p className="text-sm text-gray-500">
+                    {debt.interest_rate}% APR
+                  </p>
                 </div>
-              ))}
+                <div className="text-right">
+                  <p className="text-sm font-medium text-gray-900">
+                    <Amount value={debt.current_balance} currency="USD" />
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Min Payment: <Amount value={debt.minimum_payment} currency="USD" />
+                  </p>
+                </div>
+              </div>
             </div>
-          </div>
+          ))}
         </div>
       </div>
     </div>

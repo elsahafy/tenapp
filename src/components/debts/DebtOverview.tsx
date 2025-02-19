@@ -1,79 +1,74 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase-client'
 import { Database } from '@/types/supabase'
+import { Amount } from '@/components/ui/amount'
+import { Card } from '@/components/ui/Card'
+import { PlusIcon } from '@heroicons/react/24/outline'
+import { CreateAccountModal } from '@/components/accounts/CreateAccountModal'
 import {
   BanknotesIcon,
   CreditCardIcon,
-  HomeIcon,
-  AcademicCapIcon,
-  TruckIcon,
+  HomeModernIcon,
+  BuildingLibraryIcon,
 } from '@heroicons/react/24/outline'
+
+type Account = Database['public']['Tables']['accounts']['Row']
 
 interface DebtSummary {
   totalDebt: number
-  debtsByType: { [key in Database['public']['Enums']['debt_type']]: number }
-  monthlyPayments: number
-  averageInterestRate: number
+  monthlyPayment: number
+  interestPaid: number
+  projectedPayoffMonths: number
+  accounts: Account[]
 }
 
-const DEBT_ICONS: { [key: string]: any } = {
-  mortgage: HomeIcon,
-  credit_card: CreditCardIcon,
-  student_loan: AcademicCapIcon,
-  auto_loan: TruckIcon,
-  personal: BanknotesIcon,
-}
-
-export function DebtOverview() {
+export default function DebtOverview() {
   const [summary, setSummary] = useState<DebtSummary>({
     totalDebt: 0,
-    debtsByType: {} as { [key in Database['public']['Enums']['debt_type']]: number },
-    monthlyPayments: 0,
-    averageInterestRate: 0,
+    monthlyPayment: 0,
+    interestPaid: 0,
+    projectedPayoffMonths: 0,
+    accounts: []
   })
   const [loading, setLoading] = useState(true)
+  const [showCreateModal, setShowCreateModal] = useState(false)
 
   useEffect(() => {
     fetchDebtSummary()
   }, [])
 
-  async function fetchDebtSummary() {
+  const fetchDebtSummary = async () => {
     try {
-      const { data: debts, error } = await supabase
-        .from('debts')
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: accounts, error } = await supabase
+        .from('accounts')
         .select('*')
-        .eq('active', true)
+        .eq('user_id', user.id)
+        .in('type', ['credit_card', 'loan'])
+        .eq('is_active', true)
 
       if (error) throw error
 
-      const summary = debts.reduce(
-        (acc, debt) => {
-          // Update total debt
-          acc.totalDebt += debt.current_balance
+      const debtAccounts = accounts as Account[]
+      const totalDebt = debtAccounts.reduce((sum, account) => sum + account.current_balance, 0)
+      
+      // For now, use simple calculations
+      const avgInterestRate = debtAccounts.reduce((sum, account) => sum + (account.interest_rate || 0), 0) / debtAccounts.length || 0
+      const monthlyPayment = totalDebt * 0.05 // Assume 5% monthly payment
+      const interestPaid = totalDebt * (avgInterestRate / 100) // Simple interest calculation
+      const projectedPayoffMonths = totalDebt / monthlyPayment
 
-          // Update debts by type
-          acc.debtsByType[debt.type] = (acc.debtsByType[debt.type] || 0) + debt.current_balance
-
-          // Update monthly payments
-          acc.monthlyPayments += debt.minimum_payment
-
-          // Update average interest rate (weighted)
-          acc.averageInterestRate +=
-            (debt.interest_rate * debt.current_balance) / acc.totalDebt
-
-          return acc
-        },
-        {
-          totalDebt: 0,
-          debtsByType: {} as { [key in Database['public']['Enums']['debt_type']]: number },
-          monthlyPayments: 0,
-          averageInterestRate: 0,
-        }
-      )
-
-      setSummary(summary)
+      setSummary({
+        totalDebt,
+        monthlyPayment,
+        interestPaid,
+        projectedPayoffMonths,
+        accounts: debtAccounts
+      })
     } catch (error) {
       console.error('Error fetching debt summary:', error)
     } finally {
@@ -81,110 +76,163 @@ export function DebtOverview() {
     }
   }
 
+  async function refetch() {
+    await fetchDebtSummary()
+  }
+
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-6">
-          <div className="animate-pulse space-y-4">
-            <div className="h-4 bg-gray-200 rounded w-1/4"></div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-20 bg-gray-100 rounded"></div>
-              ))}
-            </div>
-          </div>
-        </div>
+      <div className="space-y-4 animate-pulse">
+        <div className="h-32 bg-gray-200 rounded-lg"></div>
+        <div className="h-64 bg-gray-200 rounded-lg"></div>
       </div>
     )
   }
 
   return (
-    <div className="bg-white rounded-lg shadow">
-      <div className="p-6">
-        <h2 className="text-base font-semibold text-gray-900 mb-4">Debt Overview</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-primary-50 rounded-lg p-4">
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <div className="px-4 py-5 sm:p-6">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <BanknotesIcon className="h-6 w-6 text-primary-600" />
+              <div className="flex-shrink-0 rounded-md bg-primary-100 p-3">
+                <BanknotesIcon className="h-6 w-6 text-primary-600" aria-hidden="true" />
               </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-primary-900">Total Debt</p>
-                <p className="text-2xl font-semibold text-primary-700">
-                  ${summary.totalDebt.toLocaleString()}
-                </p>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Total Debt</dt>
+                  <dd>
+                    <Amount value={summary.totalDebt} />
+                  </dd>
+                </dl>
               </div>
             </div>
           </div>
+        </Card>
 
-          <div className="bg-green-50 rounded-lg p-4">
+        <Card>
+          <div className="px-4 py-5 sm:p-6">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <CreditCardIcon className="h-6 w-6 text-green-600" />
+              <div className="flex-shrink-0 rounded-md bg-primary-100 p-3">
+                <CreditCardIcon className="h-6 w-6 text-primary-600" aria-hidden="true" />
               </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-green-900">Monthly Payments</p>
-                <p className="text-2xl font-semibold text-green-700">
-                  ${summary.monthlyPayments.toLocaleString()}
-                </p>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Monthly Payment</dt>
+                  <dd>
+                    <Amount value={summary.monthlyPayment} />
+                  </dd>
+                </dl>
               </div>
             </div>
           </div>
+        </Card>
 
-          <div className="bg-blue-50 rounded-lg p-4">
+        <Card>
+          <div className="px-4 py-5 sm:p-6">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <HomeIcon className="h-6 w-6 text-blue-600" />
+              <div className="flex-shrink-0 rounded-md bg-primary-100 p-3">
+                <HomeModernIcon className="h-6 w-6 text-primary-600" aria-hidden="true" />
               </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-blue-900">Largest Debt Type</p>
-                <p className="text-2xl font-semibold text-blue-700">
-                  {Object.entries(summary.debtsByType)
-                    .sort(([, a], [, b]) => b - a)[0]?.[0] || 'None'}
-                </p>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Interest Paid</dt>
+                  <dd>
+                    <Amount value={summary.interestPaid} />
+                  </dd>
+                </dl>
               </div>
             </div>
           </div>
+        </Card>
 
-          <div className="bg-purple-50 rounded-lg p-4">
+        <Card>
+          <div className="px-4 py-5 sm:p-6">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <AcademicCapIcon className="h-6 w-6 text-purple-600" />
+              <div className="flex-shrink-0 rounded-md bg-primary-100 p-3">
+                <BuildingLibraryIcon className="h-6 w-6 text-primary-600" aria-hidden="true" />
               </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-purple-900">Avg Interest Rate</p>
-                <p className="text-2xl font-semibold text-purple-700">
-                  {summary.averageInterestRate.toFixed(1)}%
-                </p>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Payoff Time</dt>
+                  <dd className="text-lg font-medium text-gray-900">
+                    {Math.ceil(summary.projectedPayoffMonths)} months
+                  </dd>
+                </dl>
               </div>
             </div>
           </div>
-        </div>
+        </Card>
+      </div>
 
-        <div className="mt-6">
-          <h3 className="text-sm font-medium text-gray-900 mb-3">Debt Distribution</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {Object.entries(summary.debtsByType).map(([type, amount]) => {
-              const Icon = DEBT_ICONS[type] || BanknotesIcon
-              return (
-                <div key={type} className="bg-gray-50 rounded-lg p-4">
-                  <div className="flex items-center">
-                    <Icon className="h-5 w-5 text-gray-600" />
-                    <div className="ml-3">
-                      <p className="text-sm font-medium text-gray-900 capitalize">
-                        {type.replace(/([A-Z])/g, ' $1').trim()}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        ${amount.toLocaleString()}
-                      </p>
+      <div className="bg-white shadow rounded-lg">
+        <div className="px-4 py-5 sm:p-6">
+          <div className="sm:flex sm:items-center">
+            <div className="sm:flex-auto">
+              <h3 className="text-base font-semibold leading-6 text-gray-900">
+                Your Debt Accounts
+              </h3>
+              <p className="mt-1 text-sm text-gray-500">
+                A list of all your active debt accounts including credit cards and loans.
+              </p>
+            </div>
+            <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(true)}
+                className="block rounded-md bg-primary-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
+              >
+                <PlusIcon className="inline-block h-5 w-5 mr-1" />
+                Add Account
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-8 flow-root">
+            <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+              <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+                <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+                  {summary.accounts.map((account) => (
+                    <div key={account.id} className="px-4 py-5 sm:p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-lg font-medium text-gray-900">{account.name}</h4>
+                          <p className="text-sm text-gray-500">{account.institution || 'No institution'}</p>
+                        </div>
+                        <div className="text-right">
+                          <Amount
+                            value={account.current_balance}
+                            currency={account.currency}
+                          />
+                        </div>
+                      </div>
+                      {/* Progress bar */}
+                      <div className="mt-4">
+                        <div className="h-2 w-full bg-gray-200 rounded-full">
+                          <div
+                            className="h-2 bg-primary-600 rounded-full"
+                            style={{ width: `${Math.min((account.current_balance / summary.totalDebt) * 100, 100)}%` }}
+                          />
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
-              )
-            })}
+              </div>
+            </div>
           </div>
         </div>
       </div>
+
+      {showCreateModal && (
+        <CreateAccountModal
+          onClose={() => setShowCreateModal(false)}
+          onSave={async () => {
+            await refetch()
+            setShowCreateModal(false)
+          }}
+        />
+      )}
     </div>
   )
 }

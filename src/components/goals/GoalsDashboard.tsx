@@ -3,9 +3,44 @@
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
 import { useState } from 'react'
+import AddGoalModal from './AddGoalModal'
+import { PlusIcon } from '@heroicons/react/24/outline'
+import { GoalType } from '@/types/goals'
+
+const typeIcons = {
+  savings: PlusIcon,
+  debt_payoff: PlusIcon,
+  investment: PlusIcon,
+  purchase: PlusIcon,
+  emergency_fund: PlusIcon,
+  custom: PlusIcon,
+}
+
+const typeColors = {
+  savings: 'text-blue-600',
+  debt_payoff: 'text-red-600',
+  investment: 'text-green-600',
+  purchase: 'text-purple-600',
+  emergency_fund: 'text-yellow-600',
+  custom: 'text-gray-600',
+}
 
 export default function GoalsDashboard() {
   const [goals, setGoals] = useState([])
+  const [showAddModal, setShowAddModal] = useState(false)
+
+  const handleAddGoal = () => {
+    setShowAddModal(true)
+  }
+
+  const handleModalClose = () => {
+    setShowAddModal(false)
+  }
+
+  const handleSuccess = () => {
+    // Refresh goals list
+    setShowAddModal(false)
+  }
 
   return (
     <div className="space-y-6">
@@ -18,7 +53,8 @@ export default function GoalsDashboard() {
                 Set and track your financial goals
               </p>
             </div>
-            <Button>
+            <Button onClick={handleAddGoal}>
+              <PlusIcon className="h-5 w-5 mr-2" />
               Add Goal
             </Button>
           </div>
@@ -39,17 +75,32 @@ export default function GoalsDashboard() {
                   />
                 </svg>
               </div>
-              <h3 className="mt-4 text-sm font-medium text-[var(--text-primary)]">No goals yet</h3>
+              <h3 className="mt-2 text-sm font-medium text-[var(--text-primary)]">No goals</h3>
               <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                Get started by creating a new financial goal.
+                Get started by creating a new goal
               </p>
-              <Button className="mt-4">
-                Create Goal
-              </Button>
+              <div className="mt-6">
+                <Button onClick={handleAddGoal}>
+                  <PlusIcon className="h-5 w-5 mr-2" />
+                  Add Goal
+                </Button>
+              </div>
             </div>
-          ) : null}
+          ) : (
+            <div className="mt-6">
+              {/* Goals list will go here */}
+            </div>
+          )}
         </div>
       </Card>
+
+      <AddGoalModal
+        open={showAddModal}
+        onClose={handleModalClose}
+        onSuccess={handleSuccess}
+        typeIcons={typeIcons}
+        typeColors={typeColors}
+      />
     </div>
   )
 }

@@ -25,6 +25,16 @@ const nextConfig = {
     // Enables the styled-components SWC transform
     styledComponents: true
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'qvjifftqmpmcvbqhylxv.supabase.co',
+        port: '',
+        pathname: '/storage/v1/object/public/**',
+      },
+    ],
+  },
   // Configure headers to handle Grammarly attributes
   headers: async () => {
     return [

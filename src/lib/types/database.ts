@@ -10,41 +10,6 @@ export interface RiskFactor {
 export type Database = {
   public: {
     Tables: {
-      user_profiles: {
-        Row: {
-          id: string
-          user_id: string
-          display_name: string
-          expertise_level: string
-          interests: string[]
-          social_links: { [key: string]: string }
-          points: number
-          total_points: number
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          display_name: string
-          expertise_level?: string
-          interests?: string[]
-          social_links?: { [key: string]: string }
-          points?: number
-          total_points?: number
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          display_name?: string
-          expertise_level?: string
-          interests?: string[]
-          social_links?: { [key: string]: string }
-          points?: number
-          total_points?: number
-          created_at?: string
-        }
-      }
       achievements: {
         Row: {
           id: string

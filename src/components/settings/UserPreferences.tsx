@@ -4,7 +4,28 @@ import type { UserPreferences as UserPreferencesType } from '@/lib/services/pers
 import { PersonalizationService } from '@/lib/services/personalizationService'
 import { Switch } from '@headlessui/react'
 import { Slider } from '@/components/ui/Slider'
-import { Select } from '@/components/ui/Select'
+
+interface SelectProps {
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  options: { value: string; label: string; }[];
+}
+
+function Select({ value, onChange, options }: SelectProps) {
+  return (
+    <select
+      value={value}
+      onChange={onChange}
+      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+    >
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
+  );
+}
 
 function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ')
@@ -238,12 +259,12 @@ export default function UserPreferences() {
               </label>
               <Select
                 value={preferences.notification_preferences.frequency}
-                onChange={(value) =>
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
                   setPreferences({
                     ...preferences,
                     notification_preferences: {
                       ...preferences.notification_preferences,
-                      frequency: value as 'daily' | 'weekly' | 'monthly',
+                      frequency: e.target.value as 'daily' | 'weekly' | 'monthly',
                     },
                   })
                 }
@@ -268,8 +289,8 @@ export default function UserPreferences() {
                 Anomaly Detection Confidence ({preferences.notification_preferences.threshold.anomaly_confidence}%)
               </label>
               <Slider
-                value={preferences.notification_preferences.threshold.anomaly_confidence}
-                onChange={(value) => handleThresholdChange('anomaly_confidence', value)}
+                value={[preferences.notification_preferences.threshold.anomaly_confidence]}
+                onValueChange={(values) => handleThresholdChange('anomaly_confidence', values[0])}
                 min={0}
                 max={100}
                 step={5}
@@ -280,8 +301,8 @@ export default function UserPreferences() {
                 Pattern Recognition Confidence ({preferences.notification_preferences.threshold.pattern_confidence}%)
               </label>
               <Slider
-                value={preferences.notification_preferences.threshold.pattern_confidence}
-                onChange={(value) => handleThresholdChange('pattern_confidence', value)}
+                value={[preferences.notification_preferences.threshold.pattern_confidence]}
+                onValueChange={(values) => handleThresholdChange('pattern_confidence', values[0])}
                 min={0}
                 max={100}
                 step={5}
@@ -292,8 +313,8 @@ export default function UserPreferences() {
                 Prediction Confidence ({preferences.notification_preferences.threshold.prediction_confidence}%)
               </label>
               <Slider
-                value={preferences.notification_preferences.threshold.prediction_confidence}
-                onChange={(value) => handleThresholdChange('prediction_confidence', value)}
+                value={[preferences.notification_preferences.threshold.prediction_confidence]}
+                onValueChange={(values) => handleThresholdChange('prediction_confidence', values[0])}
                 min={0}
                 max={100}
                 step={5}
@@ -314,8 +335,14 @@ export default function UserPreferences() {
               </label>
               <Select
                 value={preferences.learning_preferences.risk_tolerance}
-                onChange={(value) =>
-                  handleLearningPreferenceChange('risk_tolerance', value)
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                  setPreferences({
+                    ...preferences,
+                    learning_preferences: {
+                      ...preferences.learning_preferences,
+                      risk_tolerance: e.target.value as 'conservative' | 'moderate' | 'aggressive',
+                    },
+                  })
                 }
                 options={[
                   { value: 'conservative', label: 'Conservative' },
@@ -330,8 +357,14 @@ export default function UserPreferences() {
               </label>
               <Select
                 value={preferences.learning_preferences.investment_style}
-                onChange={(value) =>
-                  handleLearningPreferenceChange('investment_style', value)
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                  setPreferences({
+                    ...preferences,
+                    learning_preferences: {
+                      ...preferences.learning_preferences,
+                      investment_style: e.target.value as 'passive' | 'balanced' | 'active',
+                    },
+                  })
                 }
                 options={[
                   { value: 'passive', label: 'Passive' },
@@ -346,8 +379,14 @@ export default function UserPreferences() {
               </label>
               <Select
                 value={preferences.learning_preferences.savings_priority}
-                onChange={(value) =>
-                  handleLearningPreferenceChange('savings_priority', value)
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                  setPreferences({
+                    ...preferences,
+                    learning_preferences: {
+                      ...preferences.learning_preferences,
+                      savings_priority: e.target.value as 'low' | 'medium' | 'high',
+                    },
+                  })
                 }
                 options={[
                   { value: 'low', label: 'Low' },
@@ -358,12 +397,18 @@ export default function UserPreferences() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Budget Strictness
+                Budget Style
               </label>
               <Select
                 value={preferences.learning_preferences.budget_strictness}
-                onChange={(value) =>
-                  handleLearningPreferenceChange('budget_strictness', value)
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                  setPreferences({
+                    ...preferences,
+                    learning_preferences: {
+                      ...preferences.learning_preferences,
+                      budget_strictness: e.target.value as 'strict' | 'balanced' | 'flexible',
+                    },
+                  })
                 }
                 options={[
                   { value: 'strict', label: 'Strict' },

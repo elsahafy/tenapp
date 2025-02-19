@@ -1,25 +1,20 @@
 import { supabase } from '../supabase'
-import type { Database } from '../types/database'
-import { RealtimeService } from './realtimeService'
+import type { Database } from '@/types/supabase'
 
 // Database types
 type Tables = Database['public']['Tables']
-export type UserProfile = Tables['user_profiles']['Row']
-export type SharedInsight = Tables['shared_insights']['Row']
-export type InsightInteraction = Tables['insight_interactions']['Row']
-type NotificationType = Tables['notifications']['Row']['type']
-type NotificationData = Tables['notifications']['Row']['data']
+export type Profile = Tables['profiles']['Row']
 
 type DbResult<T> = T extends PromiseLike<infer U> ? U : never
 type DbResultOk<T> = T extends PromiseLike<{ data: infer U }> ? Exclude<U, null> : never
 
 export class SocialService {
   // Profile Management
-  static async getProfile(userId: string): Promise<UserProfile | null> {
+  static async getProfile(userId: string): Promise<Profile | null> {
     const { data, error } = await supabase
-      .from('user_profiles')
+      .from('profiles')
       .select('*')
-      .eq('user_id', userId)
+      .eq('id', userId)
       .single()
 
     if (error) throw error
@@ -28,12 +23,12 @@ export class SocialService {
 
   static async updateProfile(
     userId: string,
-    updates: Partial<UserProfile>
-  ): Promise<UserProfile | null> {
+    updates: Partial<Profile>
+  ): Promise<Profile | null> {
     const { data, error } = await supabase
-      .from('user_profiles')
+      .from('profiles')
       .update(updates)
-      .eq('user_id', userId)
+      .eq('id', userId)
       .select()
       .single()
 
@@ -154,7 +149,7 @@ export class SocialService {
     return data
   }
 
-  static async shareInsight(userId: string, insight: Omit<SharedInsight, 'id' | 'user_id' | 'created_at'>) {
+  static async shareInsight(userId: string, insight: any) {
     const { data, error } = await supabase
       .from('shared_insights')
       .insert({
@@ -184,7 +179,7 @@ export class SocialService {
     category?: string
     visibility?: 'public' | 'private' | 'friends'
     limit?: number
-  }): Promise<SharedInsight[]> {
+  }): Promise<any[]> {
     let query = supabase.from('shared_insights').select('*')
 
     if (options.userId) {
@@ -235,7 +230,7 @@ export class SocialService {
   }
 
   static async createInsightInteraction(
-    interaction: Omit<InsightInteraction, 'id' | 'created_at'>
+    interaction: any
   ) {
     const { data, error } = await supabase
       .from('insight_interactions')
@@ -262,7 +257,7 @@ export class SocialService {
   }
 
   // Insight Interactions
-  static async getInsightInteractions(insightId: string): Promise<InsightInteraction[]> {
+  static async getInsightInteractions(insightId: string): Promise<any[]> {
     const { data, error } = await supabase
       .from('insight_interactions')
       .select('*')
@@ -277,7 +272,7 @@ export class SocialService {
     insightId: string,
     type: 'like' | 'comment',
     data?: { comment?: string }
-  ): Promise<InsightInteraction> {
+  ): Promise<any> {
     const { data: interaction, error } = await supabase
       .from('insight_interactions')
       .insert([{
@@ -296,8 +291,8 @@ export class SocialService {
   // Notification Management
   static async createNotification(
     userId: string,
-    type: NotificationType,
-    data: NotificationData
+    type: string,
+    data: any
   ) {
     const { error } = await supabase.from('notifications').insert({
       user_id: userId,

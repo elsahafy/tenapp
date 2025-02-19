@@ -1,194 +1,222 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import type { Transaction, TransactionFilter } from '@/lib/types/database'
-import { getTransactions, getTransactionAnalytics } from '@/lib/services/transactionService'
+import { useState } from 'react'
+import type { Database } from '@/types/supabase'
+import { Amount } from '@/components/ui/amount'
 import { format } from 'date-fns'
-import { supabase } from '@/lib/supabase'
 import {
   ArrowDownIcon,
   ArrowUpIcon,
   ArrowsRightLeftIcon,
+  CalendarIcon,
   FunnelIcon,
-  MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline'
-import { Disclosure, Menu, Transition } from '@headlessui/react'
+import { Menu, Transition } from '@headlessui/react'
 import { Fragment } from 'react'
+import { cn } from '@/lib/utils'
 
-type DateRange = TransactionFilter['dateRange']
+type Tables = Database['public']['Tables']
+type Transaction = Tables['transactions']['Row']
+type Account = Tables['accounts']['Row']
+type Category = Tables['categories']['Row']
 
-interface Props {
-  accountId?: string
-  onTransactionClick?: (transaction: Transaction) => void
+interface TransactionListProps {
+  transactions: Transaction[]
+  accounts: Account[]
+  categories: Category[]
+  isLoading: boolean
+  className?: string
 }
 
-export default function TransactionList({ accountId, onTransactionClick }: Props) {
-  const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<TransactionFilter>({
-    type: 'all',
-    status: 'all',
-    dateRange: 'all',
-    searchTerm: '',
-  })
+const dateRanges = [
+  { label: 'Last 7 days', value: '7days' },
+  { label: 'Last 30 days', value: '30days' },
+  { label: 'Last 90 days', value: '90days' },
+  { label: 'This year', value: 'year' },
+  { label: 'All time', value: 'all' },
+]
 
-  useEffect(() => {
-    const loadTransactions = async () => {
-      try {
-        setLoading(true)
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) {
-          throw new Error('Not authenticated')
-        }
+export function TransactionList({ transactions, accounts, categories, isLoading, className }: TransactionListProps) {
+  const [dateRange, setDateRange] = useState('30days')
+  const [typeFilter, setTypeFilter] = useState('all')
 
-        let query = supabase
-          .from('transactions')
-          .select('*')
-          .eq('user_id', user.id)
+  const getAccountName = (accountId: string) => {
+    return accounts.find(a => a.id === accountId)?.name || 'Unknown Account'
+  }
 
-        if (accountId) {
-          query = query.eq('account_id', accountId)
-        }
-
-        if (filter.type !== 'all') {
-          query = query.eq('type', filter.type)
-        }
-
-        if (filter.status !== 'all') {
-          query = query.eq('status', filter.status)
-        }
-
-        if (filter.searchTerm) {
-          query = query.ilike('description', `%${filter.searchTerm}%`)
-        }
-
-        const { data, error } = await query
-
-        if (error) throw error
-        setTransactions(data || [])
-      } catch (error) {
-        console.error('Error loading transactions:', error)
-      } finally {
-        setLoading(false)
-      }
+  const getTransactionIcon = (type: string, amount: number) => {
+    if (type === 'transfer') {
+      return (
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100">
+          <ArrowsRightLeftIcon className="h-5 w-5 text-gray-600" aria-hidden="true" />
+        </div>
+      )
     }
-
-    loadTransactions()
-  }, [filter, accountId])
-
-  const handleTypeFilter = (type: TransactionFilter['type']) => {
-    setFilter(prev => ({ ...prev, type }))
+    return amount > 0 ? (
+      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100">
+        <ArrowUpIcon className="h-5 w-5 text-green-600" aria-hidden="true" />
+      </div>
+    ) : (
+      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-100">
+        <ArrowDownIcon className="h-5 w-5 text-red-600" aria-hidden="true" />
+      </div>
+    )
   }
-
-  const handleStatusFilter = (status: TransactionFilter['status']) => {
-    setFilter(prev => ({ ...prev, status }))
-  }
-
-  const handleDateFilter = (dateRange: DateRange) => {
-    setFilter(prev => ({ ...prev, dateRange }))
-  }
-
-  if (loading) return <div>Loading...</div>
 
   return (
-    <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex space-x-4 mb-4">
-        <select
-          value={filter.type}
-          onChange={(e) => handleTypeFilter(e.target.value as TransactionFilter['type'])}
-          className="rounded-md border-gray-300"
-        >
-          <option value="all">All Types</option>
-          <option value="deposit">Deposits</option>
-          <option value="withdrawal">Withdrawals</option>
-          <option value="transfer">Transfers</option>
-        </select>
-
-        <select
-          value={filter.status}
-          onChange={(e) => handleStatusFilter(e.target.value as TransactionFilter['status'])}
-          className="rounded-md border-gray-300"
-        >
-          <option value="all">All Status</option>
-          <option value="completed">Completed</option>
-          <option value="pending">Pending</option>
-          <option value="failed">Failed</option>
-        </select>
-
-        <select
-          value={filter.dateRange}
-          onChange={(e) => handleDateFilter(e.target.value as DateRange)}
-          className="rounded-md border-gray-300"
-        >
-          <option value="all">All Time</option>
-          <option value="today">Today</option>
-          <option value="week">This Week</option>
-          <option value="month">This Month</option>
-          <option value="year">This Year</option>
-        </select>
-
-        <div className="relative">
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-            <MagnifyingGlassIcon
-              className="h-5 w-5 text-gray-400"
-              aria-hidden="true"
-            />
+    <div className={cn('mt-8 flow-root', className)}>
+      <div className="flex items-center justify-between mb-4">
+        <Menu as="div" className="relative inline-block text-left">
+          <div>
+            <Menu.Button className="group inline-flex items-center text-sm font-medium text-gray-700 hover:text-gray-900">
+              <CalendarIcon
+                className="mr-2 h-5 w-5 flex-shrink-0 text-gray-400 group-hover:text-gray-500"
+                aria-hidden="true"
+              />
+              {dateRanges.find(r => r.value === dateRange)?.label}
+            </Menu.Button>
           </div>
-          <input
-            type="text"
-            className="block w-full rounded-md border-0 py-1.5 pl-10 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
-            placeholder="Search transactions..."
-            value={filter.searchTerm}
-            onChange={(e) =>
-              setFilter(prev => ({ ...prev, searchTerm: e.target.value }))
-            }
-          />
-        </div>
+          <Transition
+            as={Fragment}
+            enter="transition ease-out duration-100"
+            enterFrom="transform opacity-0 scale-95"
+            enterTo="transform opacity-100 scale-100"
+            leave="transition ease-in duration-75"
+            leaveFrom="transform opacity-100 scale-100"
+            leaveTo="transform opacity-0 scale-95"
+          >
+            <Menu.Items className="absolute left-0 z-10 mt-2 w-40 origin-top-left rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+              <div className="py-1">
+                {dateRanges.map((range) => (
+                  <Menu.Item key={range.value}>
+                    {({ active }) => (
+                      <button
+                        onClick={() => setDateRange(range.value)}
+                        className={cn(
+                          active ? 'bg-gray-100 text-gray-900' : 'text-gray-700',
+                          'block px-4 py-2 text-sm w-full text-left'
+                        )}
+                      >
+                        {range.label}
+                      </button>
+                    )}
+                  </Menu.Item>
+                ))}
+              </div>
+            </Menu.Items>
+          </Transition>
+        </Menu>
+
+        <Menu as="div" className="relative inline-block text-left">
+          <div>
+            <Menu.Button className="group inline-flex items-center text-sm font-medium text-gray-700 hover:text-gray-900">
+              <FunnelIcon
+                className="mr-2 h-5 w-5 flex-shrink-0 text-gray-400 group-hover:text-gray-500"
+                aria-hidden="true"
+              />
+              {typeFilter === 'all' ? 'All Types' : typeFilter.charAt(0).toUpperCase() + typeFilter.slice(1)}
+            </Menu.Button>
+          </div>
+          <Transition
+            as={Fragment}
+            enter="transition ease-out duration-100"
+            enterFrom="transform opacity-0 scale-95"
+            enterTo="transform opacity-100 scale-100"
+            leave="transition ease-in duration-75"
+            leaveFrom="transform opacity-100 scale-100"
+            leaveTo="transform opacity-0 scale-95"
+          >
+            <Menu.Items className="absolute right-0 z-10 mt-2 w-40 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+              <div className="py-1">
+                {['all', 'income', 'expense', 'transfer'].map((type) => (
+                  <Menu.Item key={type}>
+                    {({ active }) => (
+                      <button
+                        onClick={() => setTypeFilter(type)}
+                        className={cn(
+                          active ? 'bg-gray-100 text-gray-900' : 'text-gray-700',
+                          'block px-4 py-2 text-sm w-full text-left'
+                        )}
+                      >
+                        {type === 'all' ? 'All Types' : type.charAt(0).toUpperCase() + type.slice(1)}
+                      </button>
+                    )}
+                  </Menu.Item>
+                ))}
+              </div>
+            </Menu.Items>
+          </Transition>
+        </Menu>
       </div>
 
-      {/* Transaction List */}
-      <div className="bg-white shadow overflow-hidden sm:rounded-md">
-        <ul role="list" className="divide-y divide-gray-200">
-          {transactions.map((transaction) => (
-            <li key={transaction.id}>
-              <div className="px-4 py-4 sm:px-6">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-blue-600 truncate">
-                    {transaction.description}
-                  </p>
-                  <div className="ml-2 flex-shrink-0 flex">
-                    <p className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      transaction.status === 'completed'
-                        ? 'bg-green-100 text-green-800'
-                        : transaction.status === 'pending'
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {transaction.status}
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-2 sm:flex sm:justify-between">
-                  <div className="sm:flex">
-                    <p className="flex items-center text-sm text-gray-500">
-                      {transaction.type}
-                    </p>
-                  </div>
-                  <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                    <p>
-                      {new Intl.NumberFormat('en-US', {
-                        style: 'currency',
-                        currency: transaction.currency || 'USD',
-                      }).format(transaction.amount)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
+      {isLoading ? (
+        <div className="text-center py-12">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]" />
+          <p className="mt-4 text-sm text-gray-500">Loading transactions...</p>
+        </div>
+      ) : transactions.length === 0 ? (
+        <div className="text-center py-12">
+          <h3 className="text-sm font-medium text-gray-900">No transactions</h3>
+          <p className="mt-1 text-sm text-gray-500">Get started by adding a new transaction.</p>
+        </div>
+      ) : (
+        <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+          <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+            <table className="min-w-full divide-y divide-gray-300">
+              <thead>
+                <tr>
+                  <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0">
+                    Date
+                  </th>
+                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                    Description
+                  </th>
+                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                    Account
+                  </th>
+                  <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                    Category
+                  </th>
+                  <th scope="col" className="px-3 py-3.5 text-right text-sm font-semibold text-gray-900">
+                    Amount
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {transactions.map((transaction) => (
+                  <tr key={transaction.id}>
+                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-500 sm:pl-0">
+                      {format(new Date(transaction.date), 'MMM d, yyyy')}
+                    </td>
+                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                      {transaction.description || (
+                        transaction.category_id ? categories.find(c => c.id === transaction.category_id)?.name : 'Uncategorized'
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                      {getAccountName(transaction.account_id)}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                      <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium capitalize bg-gray-100 text-gray-800">
+                        {transaction.category_id ? categories.find(c => c.id === transaction.category_id)?.name : 'Uncategorized'}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-4 text-sm text-right">
+                      <Amount 
+                        value={transaction.amount} 
+                        className={cn(
+                          transaction.amount > 0 ? 'text-green-600' : 'text-red-600',
+                          'font-medium'
+                        )}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
