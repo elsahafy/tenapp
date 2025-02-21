@@ -57,6 +57,97 @@
 
 # Scratchpad
 
+# Current Task: Account Balance Display Improvements
+
+## Objective
+Improve how debt accounts (loans and credit cards) are displayed in the dashboard to properly reflect negative balances.
+
+## Progress
+[X] Fix loan and credit card display in the Amount component
+[X] Update total balance calculation in AccountSummary
+[X] Make loan amounts show as negative and red in the dashboard
+[X] Reset form fields when Add Account modal opens
+[X] Close Add Account modal after successful submission
+[X] Add validation for loan-specific fields
+[X] Add tooltips to explain debt amounts
+[X] Add tooltips for EMI and other loan terms
+[X] Add auto-calculation for monthly installment
+[X] Fix duplicate interest rate field
+[X] Improve mobile responsiveness
+
+## Mobile Responsiveness Improvements
+1. AddAccountModal:
+   - Full-width modal on mobile, max-width on larger screens
+   - Responsive grid layout (1 column on mobile, 2 columns on desktop)
+   - Stacked buttons on mobile, side-by-side on desktop
+   - Improved form field spacing and readability
+   - Better touch targets for buttons and inputs
+
+2. AccountSummary:
+   - Simplified card design for better mobile viewing
+   - Responsive padding and spacing
+   - Horizontal scrolling for wide content on small screens
+   - Stacked header on mobile (title above balance)
+   - Optimized account list for mobile viewing
+   - Better loading state design
+
+## Next Steps
+[ ] Consider adding transaction history view
+[ ] Add account editing functionality
+[ ] Implement account deletion
+[ ] Add data export feature
+
+## Technical Details
+- Using Amount component for consistent balance display
+- Tailwind CSS for styling (text-red-600 for debt amounts)
+- Currency conversion support with preferred currency
+- Added reusable Tooltip component for better UX
+- Form validation with field-specific error messages
+- Auto-calculation for loan installments and end date
+
+## UI Components Modified
+- Amount component: Added debt account handling
+- AccountSummary: Updated balance calculations and display
+- AddAccountModal: Added form reset and validation
+- Added new Tooltip component for explanatory text
+
+## Lessons Learned
+1. Debt Account Handling:
+   - Both loans and credit cards should be treated as debt (negative balances)
+   - Use -Math.abs() to ensure debt amounts are always negative
+   - Display debt amounts in red (text-red-600) with a minus sign
+   - Subtract debt amounts from total balance calculations
+
+2. Form Management:
+   - Reset form fields when modal opens for better UX
+   - Clear all fields including loan-specific ones
+   - Set default values (e.g., checking for type, USD for currency)
+   - Validate all required fields with clear error messages
+
+3. User Experience:
+   - Add tooltips to explain financial terms
+   - Show helpful icons (ⓘ) next to complex terms
+   - Use cursor-help to indicate additional information
+   - Provide immediate feedback on invalid inputs
+   - Auto-calculate fields where possible
+   - Allow manual override of calculated fields
+
+4. Mobile Design:
+   - Use responsive grid layouts
+   - Stack elements on mobile for better readability
+   - Ensure touch targets are large enough
+   - Handle horizontal scrolling gracefully
+   - Provide appropriate spacing for mobile viewing
+
+## Notes
+- Maintain consistent handling of debt accounts across all components
+- Follow the pattern of showing debts in red with negative values
+- Keep currency conversion in mind for all balance displays
+- Validate all loan fields before submission
+- Provide clear error messages for invalid inputs
+- Use tooltips to explain complex financial terms
+- Ensure all components are mobile-responsive
+
 # Current Task: Fix Analytics Page TypeScript Errors
 
 ## Objective
@@ -166,3 +257,57 @@ Improve the layout and design of account cards in the dashboard to be more compa
 - Preserve important account details
 - Balance between compactness and readability
 - Loan form needs all fields for proper tracking
+
+# Current Task: Loan Form Improvements
+
+## Objective
+Improve the loan form functionality and user experience by fixing issues with interest rate input and ensuring consistency between add and edit forms.
+
+## Progress
+[X] Fix duplicate interest rate field in AddAccountModal
+[X] Make interest rate field editable
+[X] Add auto-calculate toggle for loan interest rate
+[X] Add collateral and loan purpose fields
+[X] Add EMI toggle with tooltip
+[X] Improve form validation and error messages
+[X] Make form fields consistent between add and edit modes
+[X] Improve mobile responsiveness
+
+## Technical Details
+- Interest rate field shared between credit cards and loans
+- Auto-calculate toggle only shows for loans
+- EMI toggle affects auto-calculation
+- Form validation with field-specific error messages
+- Consistent styling using Tailwind CSS
+- Responsive grid layout with sm:col-span-2
+
+## Lessons Learned
+1. Form Field Management:
+   - Keep shared fields (like interest rate) in one place
+   - Show/hide features based on account type
+   - Use consistent validation and error handling
+   - Maintain field state properly
+
+2. User Experience:
+   - Add tooltips for complex terms
+   - Allow both auto-calculation and manual input
+   - Show clear feedback on field changes
+   - Keep form layout consistent
+
+3. Code Organization:
+   - Group related fields together
+   - Share common functionality between forms
+   - Use consistent styling patterns
+   - Handle form state changes properly
+
+## Next Steps
+[ ] Add field validation for collateral and loan purpose
+[ ] Consider adding more loan-specific fields
+[ ] Add help text for loan terms
+[ ] Improve error message clarity
+
+## Notes
+- Keep interest rate field consistent across account types
+- Maintain clear separation between auto and manual calculation
+- Use tooltips to explain complex terms
+- Follow mobile-first design principles

@@ -11,186 +11,228 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { cn } from '@/lib/utils'
 import { formatCurrencyWithCode, convertCurrency } from '@/lib/utils/currencyConverter'
 import { useUserPreferences } from '@/lib/hooks/useUserPreferences'
+import { Tooltip } from '@/components/ui/Tooltip'
 
 type Tables = Database['public']['Tables']
 type Account = Tables['accounts']['Row']
 
+const accountTypeDescriptions = {
+  checking: 'A standard bank account for everyday transactions',
+  savings: 'An interest-bearing account for saving money',
+  credit_card: 'A revolving credit line - negative balance indicates amount owed',
+  loan: 'A borrowed amount to be repaid over time - negative balance indicates remaining debt',
+  investment: 'An account holding stocks, bonds, or other investments',
+  cash: 'Physical money held in cash'
+} as const
+
 export function AccountSummary() {
   const { preferences, loading: prefsLoading } = useUserPreferences()
   const [accounts, setAccounts] = useState<Account[]>([])
-  const [totalBalance, setTotalBalance] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     async function fetchAccounts() {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) {
-          setLoading(false)
-          return
-        }
-
-        const { data: accountsData, error } = await supabase
+        const { data: accounts, error } = await supabase
           .from('accounts')
           .select('*')
-          .eq('user_id', user.id)
-          .eq('is_active', true)
+          .order('name')
 
         if (error) throw error
 
-        const fetchedAccounts = accountsData || []
-        setAccounts(fetchedAccounts)
-
-        // Only calculate total balance if we have preferences and accounts
-        if (!prefsLoading && preferences.preferredCurrency) {
-          const total = fetchedAccounts.reduce((sum, account) => {
-            // Convert the balance to the preferred currency
-            const convertedBalance = convertCurrency(
-              account.current_balance,
-              account.currency,
-              preferences.preferredCurrency
-            )
-            
-            // For credit cards and loans, subtract the balance since it represents debt
-            if (account.type === 'credit_card' || account.type === 'loan') {
-              return sum - convertedBalance
-            }
-            
-            return sum + convertedBalance
-          }, 0)
-          setTotalBalance(total)
-        }
+        setAccounts(accounts || [])
       } catch (error) {
         console.error('Error fetching accounts:', error)
+        setError('Failed to load accounts')
       } finally {
         setLoading(false)
       }
     }
 
     fetchAccounts()
-  }, [prefsLoading, preferences.preferredCurrency])
+  }, [])
+
+  // Calculate total balance
+  const totalBalance = accounts.reduce((sum, account) => {
+    const balance = Number(account.current_balance)
+    // For credit cards and loans, the balance is already negative in the database
+    const convertedBalance = convertCurrency(
+      balance,
+      account.currency,
+      preferences.preferredCurrency
+    )
+    return sum + convertedBalance
+  }, 0)
 
   // Show loading state while fetching accounts or preferences
   if (loading || prefsLoading) {
     return (
-      <Card className="relative overflow-hidden bg-white shadow-sm border border-gray-100">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <div className="space-y-1">
-            <CardTitle className="text-lg font-semibold">Account Summary</CardTitle>
-            <p className="text-sm text-gray-500">Overview of your financial accounts</p>
+      <div className="bg-white shadow sm:rounded-lg">
+        <div className="px-4 py-5 sm:p-6">
+          <div className="sm:flex sm:items-center sm:justify-between">
+            <h3 className="text-base font-semibold leading-6 text-gray-900">Account Summary</h3>
+            <div className="mt-4 sm:mt-0">
+              <p className="text-sm text-gray-500">
+                Total Balance:{' '}
+                <span className={cn(
+                  "font-medium",
+                  totalBalance < 0 ? 'text-red-600' : 'text-gray-900'
+                )}>
+                  {formatCurrencyWithCode(totalBalance, preferences.preferredCurrency)}
+                </span>
+              </p>
+            </div>
           </div>
-          <Skeleton className="h-6 w-32" />
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100"
-              >
-                <div className="flex items-center space-x-3">
-                  <Skeleton className="h-8 w-8 rounded-lg" />
-                  <div className="space-y-1.5">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-3 w-16" />
+
+          <div className="mt-6 flow-root">
+            <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+              <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+                <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+                  <div className="min-w-full divide-y divide-gray-300">
+                    {/* Account list */}
+                    <div className="bg-white">
+                      <div className="px-4 py-4 sm:px-6">
+                        <div className="animate-pulse flex space-x-4">
+                          <div className="flex-1 space-y-4 py-1">
+                            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                            <div className="space-y-2">
+                              <div className="h-4 bg-gray-200 rounded"></div>
+                              <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <Skeleton className="h-5 w-20" />
               </div>
-            ))}
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     )
   }
 
   return (
-    <Card className="relative overflow-hidden bg-white shadow-sm border border-gray-100">
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent pointer-events-none" />
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-        <div className="space-y-1">
-          <CardTitle className="text-lg font-semibold">Account Summary</CardTitle>
-          <p className="text-sm text-gray-500">Overview of your financial accounts</p>
+    <div className="bg-white shadow sm:rounded-lg">
+      <div className="px-4 py-5 sm:p-6">
+        <div className="sm:flex sm:items-center sm:justify-between">
+          <h3 className="text-base font-semibold leading-6 text-gray-900">Account Summary</h3>
+          <div className="mt-4 sm:mt-0">
+            <p className="text-sm text-gray-500">
+              Total Balance:{' '}
+              <span className={cn(
+                "font-medium",
+                totalBalance < 0 ? 'text-red-600' : 'text-gray-900'
+              )}>
+                {formatCurrencyWithCode(totalBalance, preferences.preferredCurrency)}
+              </span>
+            </p>
+          </div>
         </div>
-        <div className="text-lg font-medium">
-          {preferences.preferredCurrency && (
-            <>Total Balance: {formatCurrencyWithCode(totalBalance, preferences.preferredCurrency)}</>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          {accounts.length > 0 ? (
-            <>
-              {accounts.map((account) => {
-                if (!preferences.preferredCurrency) return null
-                
-                const convertedBalance = convertCurrency(
-                  account.current_balance,
-                  account.currency,
-                  preferences.preferredCurrency
-                )
 
-                return (
-                  <div
-                    key={account.id}
-                    className={cn(
-                      'group flex items-center justify-between p-3 bg-white rounded-lg border border-gray-100',
-                      'transition-all duration-200 hover:shadow-sm hover:border-blue-100'
-                    )}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                        <svg
-                          className="h-5 w-5 text-blue-600"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-                          />
-                        </svg>
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-gray-900">{account.name}</h3>
-                        <p className="text-sm text-gray-500 capitalize">
-                          {account.type.replace('_', ' ')}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className={cn(
-                        "text-lg font-medium",
-                        (account.type === 'credit_card' || account.type === 'loan') ? 'text-red-600' : 'text-gray-900'
-                      )}>
-                        {(account.type === 'credit_card' || account.type === 'loan') ? '-' : ''}
-                        {formatCurrencyWithCode(convertedBalance, preferences.preferredCurrency)}
-                      </p>
-                      {account.currency !== preferences.preferredCurrency && (
+        <div className="mt-6 flow-root">
+          <div className="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
+            <div className="inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8">
+              <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
+                <div className="min-w-full divide-y divide-gray-300">
+                  {/* Account list */}
+                  <div className="bg-white">
+                    {accounts.length === 0 ? (
+                      <div className="text-center px-4 py-4 sm:px-6">
+                        <h3 className="text-sm font-medium text-gray-900">No accounts</h3>
                         <p className="mt-1 text-sm text-gray-500">
-                          {(account.type === 'credit_card' || account.type === 'loan') ? '-' : ''}
-                          {formatCurrencyWithCode(account.current_balance, account.currency)}
+                          Get started by adding a new account.
                         </p>
-                      )}
-                    </div>
+                      </div>
+                    ) : (
+                      accounts.map((account, accountIdx) => {
+                        const balance = Number(account.current_balance)
+                        const convertedBalance = convertCurrency(
+                          balance,
+                          account.currency,
+                          preferences.preferredCurrency
+                        )
+
+                        return (
+                          <div
+                            key={account.id}
+                            className={cn(
+                              accountIdx === 0 ? '' : 'border-t border-gray-200',
+                              'px-4 py-4 sm:px-6'
+                            )}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                                  <svg
+                                    className="h-5 w-5 text-blue-600"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                                    />
+                                  </svg>
+                                </div>
+                                <div>
+                                  <Tooltip content={accountTypeDescriptions[account.type]}>
+                                    <h3 className="font-medium text-gray-900 cursor-help">{account.name}</h3>
+                                  </Tooltip>
+                                  <p className="text-sm text-gray-500 capitalize">
+                                    {account.type.replace('_', ' ')}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <Tooltip 
+                                  content={
+                                    account.type === 'credit_card' ? 'Negative amount indicates credit card balance to be paid' :
+                                    account.type === 'loan' ? 'Negative amount indicates remaining loan balance to be repaid' :
+                                    'Current balance in account'
+                                  }
+                                >
+                                  <p className={cn(
+                                    "text-lg font-medium cursor-help",
+                                    (account.type === 'credit_card' || account.type === 'loan') ? 'text-red-600' : 'text-gray-900'
+                                  )}>
+                                    {formatCurrencyWithCode(
+                                      // For credit cards and loans, ensure the balance is negative
+                                      (account.type === 'credit_card' || account.type === 'loan') 
+                                        ? -Math.abs(convertedBalance) 
+                                        : convertedBalance,
+                                      preferences.preferredCurrency
+                                    )}
+                                  </p>
+                                </Tooltip>
+                                {account.currency !== preferences.preferredCurrency && (
+                                  <p className="mt-1 text-sm text-gray-500">
+                                    {formatCurrencyWithCode(
+                                      (account.type === 'credit_card' || account.type === 'loan')
+                                        ? -Math.abs(balance)
+                                        : balance,
+                                      account.currency
+                                    )}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })
+                    )}
                   </div>
-                )
-              })}
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <p className="text-sm text-gray-500">No accounts found</p>
-              <Link href="/accounts" className="mt-2">
-                <Button variant="link">Add an account</Button>
-              </Link>
+                </div>
+              </div>
             </div>
-          )}
+          </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }
