@@ -1,7 +1,7 @@
 import { Fragment } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { ExclamationTriangleIcon, XMarkIcon } from '@heroicons/react/24/outline'
-import { supabase } from '@/lib/supabase-client'
+import { supabase } from '@/lib/supabase'
 import type { Payment } from '@/types'
 
 type DeletePaymentModalProps = {

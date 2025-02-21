@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { Database } from '@/lib/types/database'
-import { supabase } from '@/lib/supabase-client'
+import { supabase } from '@/lib/supabase'
 import {
   calculateDebtPayoff,
   calculateTotalDebt,

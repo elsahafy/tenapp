@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabaseClient'
+import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/types/database'
 import { addDays, addMonths, addWeeks, addYears } from 'date-fns'
 

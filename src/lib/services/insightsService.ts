@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabaseClient'
+import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/types/database'
 import { MLService, type TransactionFilter } from './mlService'
 import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns'

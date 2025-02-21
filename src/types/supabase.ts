@@ -25,6 +25,13 @@ export interface Database {
           emi_enabled: boolean
           is_active: boolean
           institution: string | null
+          loan_term: number | null
+          loan_start_date: string | null
+          loan_end_date: string | null
+          total_loan_amount: number | null
+          monthly_installment: number | null
+          collateral: string | null
+          loan_purpose: string | null
           created_at: string
           updated_at: string
         }
@@ -43,6 +50,13 @@ export interface Database {
           emi_enabled?: boolean
           is_active?: boolean
           institution?: string | null
+          loan_term?: number | null
+          loan_start_date?: string | null
+          loan_end_date?: string | null
+          total_loan_amount?: number | null
+          monthly_installment?: number | null
+          collateral?: string | null
+          loan_purpose?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -61,6 +75,13 @@ export interface Database {
           emi_enabled?: boolean
           is_active?: boolean
           institution?: string | null
+          loan_term?: number | null
+          loan_start_date?: string | null
+          loan_end_date?: string | null
+          total_loan_amount?: number | null
+          monthly_installment?: number | null
+          collateral?: string | null
+          loan_purpose?: string | null
           created_at?: string
           updated_at?: string
         }

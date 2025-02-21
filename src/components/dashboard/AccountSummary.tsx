@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase-client'
+import { supabase } from '@/lib/supabase'
 import type { Database } from '@/types/supabase'
 import { Amount } from '@/components/ui/amount'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
@@ -51,8 +51,8 @@ export function AccountSummary() {
               preferences.preferredCurrency
             )
             
-            // For credit cards, subtract the balance since it represents debt
-            if (account.type === 'credit_card') {
+            // For credit cards and loans, subtract the balance since it represents debt
+            if (account.type === 'credit_card' || account.type === 'loan') {
               return sum - convertedBalance
             }
             
@@ -165,14 +165,14 @@ export function AccountSummary() {
                     <div className="text-right">
                       <p className={cn(
                         "text-lg font-medium",
-                        account.type === 'credit_card' ? 'text-red-600' : 'text-gray-900'
+                        (account.type === 'credit_card' || account.type === 'loan') ? 'text-red-600' : 'text-gray-900'
                       )}>
-                        {account.type === 'credit_card' ? '-' : ''}
+                        {(account.type === 'credit_card' || account.type === 'loan') ? '-' : ''}
                         {formatCurrencyWithCode(convertedBalance, preferences.preferredCurrency)}
                       </p>
                       {account.currency !== preferences.preferredCurrency && (
                         <p className="mt-1 text-sm text-gray-500">
-                          {account.type === 'credit_card' ? '-' : ''}
+                          {(account.type === 'credit_card' || account.type === 'loan') ? '-' : ''}
                           {formatCurrencyWithCode(account.current_balance, account.currency)}
                         </p>
                       )}

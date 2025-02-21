@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useUser } from '@/lib/hooks/useUser'
-import { supabase } from '@/lib/supabaseClient'
+import { supabase } from '@/lib/supabase'
 import { Category } from '@/types/accounts'
 import { useAuth } from '@/lib/auth/AuthProvider'
 import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline'

@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabaseClient'
+import { supabase } from '@/lib/supabase'
 import { RealtimeService } from './realtimeService'
 import type { Database } from '@/lib/types/database'
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'

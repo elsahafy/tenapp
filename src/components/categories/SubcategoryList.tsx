@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useUser } from '@/lib/hooks/useUser'
-import { supabase } from '@/lib/supabaseClient'
+import { supabase } from '@/lib/supabase'
 import { Category, Subcategory } from '@/types/accounts'
 import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
 import AddSubcategoryModal from './AddSubcategoryModal'

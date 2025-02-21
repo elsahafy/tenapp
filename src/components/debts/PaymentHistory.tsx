@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase-client'
+import { supabase } from '@/lib/supabase'
 import { format } from 'date-fns'
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { EditPaymentModal } from './EditPaymentModal'

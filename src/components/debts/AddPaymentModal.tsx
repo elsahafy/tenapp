@@ -1,7 +1,7 @@
 import { Fragment, useState, useEffect } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
-import { supabase } from '@/lib/supabase-client'
+import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/database.types'
 import { Payment, PaymentType } from '@/types'
 

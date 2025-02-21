@@ -16,7 +16,7 @@ const CURRENCY_LOCALES: Record<Currency, string> = {
 }
 
 export function formatCurrency(amount: number, currency: Currency): string {
-  const locale = 'en-US'
+  const locale = CURRENCY_LOCALES[currency]
   const options: Intl.NumberFormatOptions = {
     style: 'currency',
     currency: currency,

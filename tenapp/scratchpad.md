@@ -103,3 +103,66 @@ Fix TypeScript errors in the analytics page related to transaction type mismatch
 - Use proper TypeScript types from database schema
 - Add fallback UI for null/undefined values
 - Consider the complete type mapping when converting between types
+
+# Current Task: Account Card Layout Optimization
+
+## Objective
+Improve the layout and design of account cards in the dashboard to be more compact and visually appealing.
+
+## Progress
+[X] Create separate cards for each account type with matching gradients
+[X] Add account count to each section
+[X] Attempted to make cards more compact by putting amount on same line (reverted)
+[X] Maintain consistent styling with summary cards
+[X] Restore detailed loan form with all required fields
+
+## Technical Details
+- Using Tailwind CSS for styling
+- Card components with gradient backgrounds
+- Heroicons for consistent iconography
+- Responsive grid layout
+- Currency conversion support
+- Loan form fields:
+  - Loan term (months)
+  - Total loan amount
+  - Monthly installment
+  - Loan start/end dates
+  - EMI enabled toggle
+  - Interest rate and due date
+
+## UI Components Used
+- Card: bg-white with gradient overlay
+- Icons: h-10 w-10 for consistent sizing
+- Text: text-sm for names, text-xs for types
+- Colors: blue/red/amber/green-500/10 for backgrounds
+- Form inputs: consistent border-gray-300 and focus states
+
+## Lessons Learned
+- Keep consistent padding (p-6) for visual harmony
+- Maintain account type display for better context
+- Preserve currency conversion display
+- Use gradient backgrounds to match summary cards
+- Group related accounts (Bank+Credit, Loans+Investments)
+- For loan accounts, include all necessary fields:
+  - Basic fields: name, type, currency, balance
+  - Loan-specific: term, dates, amounts, EMI
+  - Optional: institution name
+- Use proper input types (number, date) with appropriate step values
+- Add min/max constraints where applicable (e.g., loan term > 0)
+- Maintain consistent form field styling across all input types
+
+## Next Steps
+[ ] Consider mobile responsiveness improvements
+[ ] Review hover states and interactions
+[ ] Test with different account name lengths
+[ ] Consider adding account balance trends
+[ ] Add form validation for loan fields
+[ ] Consider auto-calculating fields (e.g., monthly installment)
+[ ] Add tooltips for EMI and other complex terms
+
+## Notes
+- Account grouping improves visual organization
+- Consistent styling enhances user experience
+- Preserve important account details
+- Balance between compactness and readability
+- Loan form needs all fields for proper tracking

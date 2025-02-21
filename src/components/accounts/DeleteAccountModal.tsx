@@ -1,15 +1,16 @@
+'use client'
+
 import { Fragment, useState } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
-import { ExclamationTriangleIcon, XMarkIcon } from '@heroicons/react/24/outline'
-import { supabase } from '@/lib/supabase-client'
-import type { Database } from '@/lib/types/database'
+import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
+import { supabase } from '@/lib/supabase'
+import type { Database } from '@/types/supabase'
 
-type Tables = Database['public']['Tables']
-type Account = Tables['accounts']['Row']
+type Account = Database['public']['Tables']['accounts']['Row']
 
 interface DeleteAccountModalProps {
   isOpen: boolean
-  account: Account
+  account: Account | null
   onClose: () => void
   onDelete: () => Promise<void>
 }
@@ -20,31 +21,26 @@ export function DeleteAccountModal({
   onClose,
   onDelete,
 }: DeleteAccountModalProps) {
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleDelete = async () => {
-    setLoading(true)
-    setError('')
-
+    setIsDeleting(true)
+    setError(null)
     try {
-      const { error: deleteError } = await supabase
-        .from('accounts')
-        .delete()
-        .eq('id', account.id)
-
-      if (deleteError) throw deleteError
-      onDelete()
+      await onDelete()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete account')
+      setError('Failed to delete account')
     } finally {
-      setLoading(false)
+      setIsDeleting(false)
     }
   }
 
+  if (!account) return null
+
   return (
     <Transition.Root show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={onClose}>
+      <Dialog as="div" className="relative z-10" onClose={onClose}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -57,7 +53,7 @@ export function DeleteAccountModal({
           <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
         </Transition.Child>
 
-        <div className="fixed inset-0 z-10 overflow-y-auto">
+        <div className="fixed inset-0 z-10 w-screen overflow-y-auto">
           <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
             <Transition.Child
               as={Fragment}
@@ -69,51 +65,22 @@ export function DeleteAccountModal({
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
               <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
-                <div className="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
-                  <button
-                    type="button"
-                    className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
-                    onClick={onClose}
-                  >
-                    <span className="sr-only">Close</span>
-                    <XMarkIcon className="h-6 w-6" aria-hidden="true" />
-                  </button>
-                </div>
                 <div className="sm:flex sm:items-start">
                   <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
                     <ExclamationTriangleIcon className="h-6 w-6 text-red-600" aria-hidden="true" />
                   </div>
                   <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
-                    <Dialog.Title as="h3" className="text-lg font-semibold leading-6 text-gray-900">
+                    <Dialog.Title as="h3" className="text-base font-semibold leading-6 text-gray-900">
                       Delete Account
                     </Dialog.Title>
                     <div className="mt-2">
                       <p className="text-sm text-gray-500">
-                        Are you sure you want to delete the account "{account.name}"? This action cannot be undone.
+                        Are you sure you want to delete "{account.name}"? This action cannot be undone.
                       </p>
                     </div>
-
                     {error && (
-                      <div className="mt-4 rounded-md bg-red-50 p-4">
-                        <div className="flex">
-                          <div className="flex-shrink-0">
-                            <svg
-                              className="h-5 w-5 text-red-400"
-                              viewBox="0 0 20 20"
-                              fill="currentColor"
-                              aria-hidden="true"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                          </div>
-                          <div className="ml-3">
-                            <h3 className="text-sm font-medium text-red-800">{error}</h3>
-                          </div>
-                        </div>
+                      <div className="mt-2 text-sm text-red-600">
+                        {error}
                       </div>
                     )}
                   </div>
@@ -121,16 +88,17 @@ export function DeleteAccountModal({
                 <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
                   <button
                     type="button"
-                    className="inline-flex w-full justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:ml-3 sm:w-auto"
+                    className="inline-flex w-full justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 sm:ml-3 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={handleDelete}
-                    disabled={loading}
+                    disabled={isDeleting}
                   >
-                    {loading ? 'Deleting...' : 'Delete'}
+                    {isDeleting ? 'Deleting...' : 'Delete'}
                   </button>
                   <button
                     type="button"
-                    className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
+                    className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={onClose}
+                    disabled={isDeleting}
                   >
                     Cancel
                   </button>

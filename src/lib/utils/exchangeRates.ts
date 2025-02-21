@@ -1,5 +1,5 @@
 import type { Database } from '@/types/supabase'
-import { supabase } from '@/lib/supabase-client'
+import { supabase } from '@/lib/supabase'
 
 type CurrencyCode = Database['public']['Enums']['currency_code']
 

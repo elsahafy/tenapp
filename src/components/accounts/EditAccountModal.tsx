@@ -1,9 +1,9 @@
 'use client'
 
-import { Fragment, useState } from 'react'
+import { Fragment, useState, useEffect } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
-import { supabase } from '@/lib/supabase-client'
+import { supabase } from '@/lib/supabase'
 import type { Database } from '@/types/supabase'
 
 type Tables = Database['public']['Tables']
@@ -24,19 +24,50 @@ export function EditAccountModal({
   onClose,
   onSave,
 }: EditAccountModalProps) {
-  const [name, setName] = useState(account?.name ?? '')
-  const [type, setType] = useState<AccountType>(account?.type ?? 'checking')
-  const [currency, setCurrency] = useState<CurrencyCode>(account?.currency ?? 'AED')
-  const [currentBalance, setCurrentBalance] = useState(account?.current_balance?.toString() ?? '0')
-  const [creditLimit, setCreditLimit] = useState(account?.credit_limit?.toString() ?? '')
-  const [interestRate, setInterestRate] = useState(account?.interest_rate?.toString() ?? '')
-  const [dueDate, setDueDate] = useState(account?.due_date?.toString() ?? '')
-  const [minPaymentAmount, setMinPaymentAmount] = useState(account?.min_payment_amount?.toString() ?? '')
-  const [minPaymentPercentage, setMinPaymentPercentage] = useState(account?.min_payment_percentage?.toString() ?? '')
-  const [emiEnabled, setEmiEnabled] = useState(account?.emi_enabled ?? false)
-  const [institution, setInstitution] = useState(account?.institution ?? '')
+  const [name, setName] = useState('')
+  const [type, setType] = useState<AccountType>('checking')
+  const [currency, setCurrency] = useState<CurrencyCode>('AED')
+  const [currentBalance, setCurrentBalance] = useState('0')
+  const [creditLimit, setCreditLimit] = useState('')
+  const [interestRate, setInterestRate] = useState('')
+  const [dueDate, setDueDate] = useState('')
+  const [minPaymentAmount, setMinPaymentAmount] = useState('')
+  const [minPaymentPercentage, setMinPaymentPercentage] = useState('')
+  const [emiEnabled, setEmiEnabled] = useState(false)
+  const [institution, setInstitution] = useState('')
+  const [loanTerm, setLoanTerm] = useState('')
+  const [loanStartDate, setLoanStartDate] = useState('')
+  const [loanEndDate, setLoanEndDate] = useState('')
+  const [totalLoanAmount, setTotalLoanAmount] = useState('')
+  const [monthlyInstallment, setMonthlyInstallment] = useState('')
+  const [collateral, setCollateral] = useState('')
+  const [loanPurpose, setLoanPurpose] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // Update state when account changes
+  useEffect(() => {
+    if (account) {
+      setName(account.name)
+      setType(account.type)
+      setCurrency(account.currency)
+      setCurrentBalance(account.current_balance?.toString() ?? '0')
+      setCreditLimit(account.credit_limit?.toString() ?? '')
+      setInterestRate(account.interest_rate?.toString() ?? '')
+      setDueDate(account.due_date?.toString() ?? '')
+      setMinPaymentAmount(account.min_payment_amount?.toString() ?? '')
+      setMinPaymentPercentage(account.min_payment_percentage?.toString() ?? '')
+      setEmiEnabled(account.emi_enabled ?? false)
+      setInstitution(account.institution ?? '')
+      setLoanTerm(account.loan_term?.toString() ?? '')
+      setLoanStartDate(account.loan_start_date ?? '')
+      setLoanEndDate(account.loan_end_date ?? '')
+      setTotalLoanAmount(account.total_loan_amount?.toString() ?? '')
+      setMonthlyInstallment(account.monthly_installment?.toString() ?? '')
+      setCollateral(account.collateral ?? '')
+      setLoanPurpose(account.loan_purpose ?? '')
+    }
+  }, [account])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -44,30 +75,66 @@ export function EditAccountModal({
     setError('')
 
     try {
-      const { error: updateError } = await supabase
-        .from('accounts')
-        .update({
-          name,
-          type,
-          currency,
-          current_balance: parseFloat(currentBalance),
-          credit_limit: creditLimit ? parseFloat(creditLimit) : null,
-          interest_rate: interestRate ? parseFloat(interestRate) : null,
-          due_date: dueDate ? parseInt(dueDate) : null,
-          min_payment_amount: minPaymentAmount ? parseFloat(minPaymentAmount) : null,
-          min_payment_percentage: minPaymentPercentage ? parseFloat(minPaymentPercentage) : null,
-          emi_enabled: type === 'credit_card' ? emiEnabled : false,
-          institution: institution || null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', account?.id)
+      // For loans, ensure balance is negative
+      let parsedBalance = parseFloat(currentBalance)
+      if (type === 'loan' && parsedBalance > 0) {
+        parsedBalance = -parsedBalance
+      }
 
-      if (updateError) throw updateError
+      const accountData = {
+        name,
+        type,
+        currency,
+        current_balance: parsedBalance,
+        credit_limit: creditLimit ? parseFloat(creditLimit) : null,
+        interest_rate: interestRate ? parseFloat(interestRate) : null,
+        due_date: dueDate ? parseInt(dueDate) : null,
+        min_payment_amount: minPaymentAmount ? parseFloat(minPaymentAmount) : null,
+        min_payment_percentage: minPaymentPercentage ? parseFloat(minPaymentPercentage) : null,
+        emi_enabled: type === 'credit_card' ? emiEnabled : false,
+        institution: institution || null,
+        loan_term: type === 'loan' ? (loanTerm ? parseInt(loanTerm) : null) : null,
+        loan_start_date: type === 'loan' ? loanStartDate || null : null,
+        loan_end_date: type === 'loan' ? loanEndDate || null : null,
+        total_loan_amount: type === 'loan' ? (totalLoanAmount ? parseFloat(totalLoanAmount) : null) : null,
+        monthly_installment: type === 'loan' ? (monthlyInstallment ? parseFloat(monthlyInstallment) : null) : null,
+        collateral: type === 'loan' ? collateral || null : null,
+        loan_purpose: type === 'loan' ? loanPurpose || null : null,
+        updated_at: new Date().toISOString()
+      }
+
+      let error;
+      if (account?.id) {
+        // Update existing account
+        const { error: updateError } = await supabase
+          .from('accounts')
+          .update(accountData)
+          .eq('id', account.id)
+        error = updateError
+      } else {
+        // Create new account
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+          throw new Error('User not authenticated')
+        }
+
+        const { error: insertError } = await supabase
+          .from('accounts')
+          .insert([{
+            ...accountData,
+            user_id: user.id,
+            created_at: new Date().toISOString(),
+            is_active: true
+          }])
+        error = insertError
+      }
+
+      if (error) throw error
       await onSave()
       onClose()
     } catch (err) {
-      console.error('Update account error:', err)
-      setError(err instanceof Error ? err.message : 'Failed to update account')
+      console.error('Account operation error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to save account')
     } finally {
       setLoading(false)
     }
@@ -147,8 +214,8 @@ export function EditAccountModal({
                           <option value="checking">Checking</option>
                           <option value="savings">Savings</option>
                           <option value="credit_card">Credit Card</option>
-                          <option value="investment">Investment</option>
                           <option value="loan">Loan</option>
+                          <option value="investment">Investment</option>
                           <option value="cash">Cash</option>
                         </select>
                       </div>
@@ -291,6 +358,125 @@ export function EditAccountModal({
                             <label htmlFor="emiEnabled" className="ml-2 block text-sm text-gray-700">
                               Enable EMI (Equated Monthly Installment)
                             </label>
+                          </div>
+                        </>
+                      )}
+
+                      {type === 'loan' && (
+                        <>
+                          <div>
+                            <label htmlFor="totalLoanAmount" className="block text-sm font-medium text-gray-700">
+                              Total Loan Amount
+                            </label>
+                            <input
+                              type="number"
+                              name="totalLoanAmount"
+                              id="totalLoanAmount"
+                              value={totalLoanAmount}
+                              onChange={(e) => setTotalLoanAmount(e.target.value)}
+                              step="0.01"
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                            />
+                          </div>
+
+                          <div>
+                            <label htmlFor="loanTerm" className="block text-sm font-medium text-gray-700">
+                              Loan Term (months)
+                            </label>
+                            <input
+                              type="number"
+                              name="loanTerm"
+                              id="loanTerm"
+                              value={loanTerm}
+                              onChange={(e) => setLoanTerm(e.target.value)}
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                            />
+                          </div>
+
+                          <div>
+                            <label htmlFor="monthlyInstallment" className="block text-sm font-medium text-gray-700">
+                              Monthly Installment
+                            </label>
+                            <input
+                              type="number"
+                              name="monthlyInstallment"
+                              id="monthlyInstallment"
+                              value={monthlyInstallment}
+                              onChange={(e) => setMonthlyInstallment(e.target.value)}
+                              step="0.01"
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                            />
+                          </div>
+
+                          <div>
+                            <label htmlFor="loanStartDate" className="block text-sm font-medium text-gray-700">
+                              Loan Start Date
+                            </label>
+                            <input
+                              type="date"
+                              name="loanStartDate"
+                              id="loanStartDate"
+                              value={loanStartDate}
+                              onChange={(e) => setLoanStartDate(e.target.value)}
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                            />
+                          </div>
+
+                          <div>
+                            <label htmlFor="loanEndDate" className="block text-sm font-medium text-gray-700">
+                              Loan End Date
+                            </label>
+                            <input
+                              type="date"
+                              name="loanEndDate"
+                              id="loanEndDate"
+                              value={loanEndDate}
+                              onChange={(e) => setLoanEndDate(e.target.value)}
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                            />
+                          </div>
+
+                          <div>
+                            <label htmlFor="interestRate" className="block text-sm font-medium text-gray-700">
+                              Interest Rate (%)
+                            </label>
+                            <input
+                              type="number"
+                              name="interestRate"
+                              id="interestRate"
+                              value={interestRate}
+                              onChange={(e) => setInterestRate(e.target.value)}
+                              step="0.01"
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                            />
+                          </div>
+
+                          <div>
+                            <label htmlFor="collateral" className="block text-sm font-medium text-gray-700">
+                              Collateral
+                            </label>
+                            <input
+                              type="text"
+                              name="collateral"
+                              id="collateral"
+                              value={collateral}
+                              onChange={(e) => setCollateral(e.target.value)}
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                            />
+                          </div>
+
+                          <div>
+                            <label htmlFor="loanPurpose" className="block text-sm font-medium text-gray-700">
+                              Loan Purpose
+                            </label>
+                            <textarea
+                              name="loanPurpose"
+                              id="loanPurpose"
+                              value={loanPurpose}
+                              onChange={(e) => setLoanPurpose(e.target.value)}
+                              rows={3}
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                            />
                           </div>
                         </>
                       )}

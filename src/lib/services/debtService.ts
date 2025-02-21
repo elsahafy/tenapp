@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabaseClient'
+import { supabase } from '@/lib/supabase'
 import { DebtPayoffStrategy } from '@/types/debt'
 import type { Database } from '@/lib/types/database'
 

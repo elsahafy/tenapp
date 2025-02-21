@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase-client'
+import { supabase } from '@/lib/supabase'
 import { Database } from '@/types/supabase'
 import { Amount } from '@/components/ui/amount'
 import { Card } from '@/components/ui/Card'
