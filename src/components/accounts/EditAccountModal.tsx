@@ -1,10 +1,10 @@
 'use client'
 
-import { Fragment, useState, useEffect } from 'react'
-import { Dialog, Transition } from '@headlessui/react'
-import { XMarkIcon } from '@heroicons/react/24/outline'
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/types/supabase'
+import { Dialog, Transition } from '@headlessui/react'
+import { XMarkIcon } from '@heroicons/react/24/outline'
+import { Fragment, useEffect, useState } from 'react'
 
 type Tables = Database['public']['Tables']
 type Account = Tables['accounts']['Row']

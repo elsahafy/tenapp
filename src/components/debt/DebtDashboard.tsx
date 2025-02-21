@@ -1,104 +1,99 @@
-import { useState, useEffect } from 'react'
-import type { Database } from '@/lib/types/database'
-import { supabase } from '@/lib/supabase'
+import { useCurrency } from '@/lib/hooks/useCurrency'
 import {
   calculateDebtPayoff,
   calculateTotalDebt,
   generateDebtRecommendations,
-  type DebtRecommendation
 } from '@/lib/services/debtService'
+import { supabase } from '@/lib/supabase'
+import type { Database } from '@/lib/types/database'
+import { formatCurrency } from '@/lib/utils/formatters'
+import {
+  ArrowTrendingDownIcon,
+  BanknotesIcon,
+  ChartBarIcon,
+  CreditCardIcon,
+} from '@heroicons/react/24/outline'
+import { useEffect, useState } from 'react'
 import { DebtAccountList } from './DebtAccountList'
 import { DebtPayoffCalculator } from './DebtPayoffCalculator'
 import { DebtRecommendations } from './DebtRecommendations'
-import { ChartBarIcon, CreditCardIcon, ArrowTrendingDownIcon, BanknotesIcon } from '@heroicons/react/24/outline'
-import { formatCurrency, defaultCurrency } from '@/lib/currency/currencies'
+import { SummaryCard } from './SummaryCard'
 
 type Tables = Database['public']['Tables']
-type Account = Tables['accounts']['Row']
-type AccountResponse = Tables['accounts']['Row'] & {
+type Account = Tables['accounts']['Row'] & {
+  collateral: string | null
+  emi_enabled: boolean
+  loan_end_date: string | null
+  loan_purpose: string | null
+  loan_start_date: string | null
+  loan_term: number | null
+  monthly_installment: number | null
+  total_loan_amount: number | null
+  min_payment_amount: number | null
+  min_payment_percentage: number | null
+}
+
+type AccountResponse = Account & {
   minimum_payment?: number;
   currency?: string;
   institution?: string;
   account_number?: string;
 }
 
-interface SummaryCardProps {
-  title: string
-  value: string
-  description: string
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>
-  trend?: number
-  loading?: boolean
+type PayoffPlan = {
+  monthlyPayment: number;
+  minimumPayment: number;
+  totalMonths: number;
+  totalInterestPaid: number;
+  accountPayoffs: {
+    account: Account;
+    monthlyPayment: number;
+    minimumPayment: number;
+    monthsToPayoff: number;
+    totalInterest: number;
+  }[];
 }
 
-function SummaryCard({ title, value, description, icon: Icon, trend, loading }: SummaryCardProps) {
-  return (
-    <div
-      className="bg-white rounded-lg shadow p-6 relative overflow-hidden animate-in fade-in duration-500"
-      role="region"
-      aria-label={`${title} summary card`}
-    >
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-600" id={`${title.toLowerCase()}-label`}>{title}</p>
-          {loading ? (
-            <div 
-              className="h-8 w-32 bg-gray-200 animate-pulse rounded mt-1"
-              role="progressbar"
-              aria-labelledby={`${title.toLowerCase()}-label`}
-              aria-valuetext="Loading..."
-            ></div>
-          ) : (
-            <p 
-              className="mt-1 text-2xl font-semibold text-gray-900"
-              aria-labelledby={`${title.toLowerCase()}-label`}
-            >
-              {value}
-            </p>
-          )}
-          <p className="mt-1 text-sm text-gray-500">{description}</p>
-        </div>
-        <div 
-          className="h-8 w-8 bg-primary-50 rounded-lg flex items-center justify-center"
-          aria-hidden="true"
-        >
-          <Icon className="h-4 w-4 text-primary-600" aria-hidden="true" />
-        </div>
-      </div>
-      {trend !== undefined && (
-        <div 
-          className={`mt-4 flex items-center text-sm ${trend >= 0 ? 'text-green-600' : 'text-red-600'}`}
-          role="status"
-          aria-label={`${Math.abs(trend)}% ${trend >= 0 ? 'increase' : 'decrease'} from last month`}
-        >
-          <ArrowTrendingDownIcon 
-            className={`h-3 w-3 mr-1 ${trend >= 0 ? 'rotate-180' : ''}`}
-            aria-hidden="true"
-          />
-          <span>{Math.abs(trend)}% from last month</span>
-        </div>
-      )}
-    </div>
-  )
+type SummaryStats = {
+  totalDebt: number;
+  avgInterestRate: number;
+  recommendedPayment: number;
+  totalMinPayments: number;
+  projectedPayoff: number;
+  totalInterest: number;
+}
+
+// Helper function to get minimum payment for an account
+const getMinimumPayment = (account: Account): number => {
+  if (account.type === 'credit_card' && account.min_payment_percentage) {
+    return Math.max(
+      (account.min_payment_percentage / 100) * account.current_balance,
+      account.min_payment_amount || 0
+    )
+  }
+  return account.min_payment_amount || 0
 }
 
 export function DebtDashboard() {
-  const [accounts, setAccounts] = useState<AccountResponse[]>([])
+  const [accounts, setAccounts] = useState<Account[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [summaryStats, setSummaryStats] = useState({
+  const [error, setError] = useState<string | null>(null)
+  const [summaryStats, setSummaryStats] = useState<SummaryStats>({
     totalDebt: 0,
     avgInterestRate: 0,
-    monthlyPayments: 0,
-    projectedPayoff: 0
+    recommendedPayment: 0,
+    totalMinPayments: 0,
+    projectedPayoff: 0,
+    totalInterest: 0
   })
-
-  useEffect(() => {
-    fetchAccounts()
-  }, [])
+  const [payoffPlan, setPayoffPlan] = useState<PayoffPlan | null>(null)
+  const { currency: userCurrency } = useCurrency()
 
   const fetchAccounts = async () => {
     try {
+      setLoading(true)
+      setError(null)
+
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('No user found')
 
@@ -111,61 +106,138 @@ export function DebtDashboard() {
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      
-      const validAccounts = (data as AccountResponse[] || []).map(account => ({
+
+      // Convert and validate account data
+      const validAccounts = (data || []).map(account => ({
         ...account,
-        minimum_payment: account.minimum_payment || 0,
-        currency: account.currency || 'USD',
-        institution: account.institution || '',
-        account_number: account.account_number || ''
+        current_balance: Math.abs(account.current_balance || 0), // Ensure positive balance
+        interest_rate: account.interest_rate || 0,
+        min_payment_amount: account.min_payment_amount || null,
+        min_payment_percentage: account.min_payment_percentage || null,
+        monthly_installment: account.monthly_installment || null,
+        currency: account.currency || userCurrency
       }))
 
       setAccounts(validAccounts)
-      
-      // Calculate summary statistics
-      const totalDebt = validAccounts.reduce((sum, acc) => sum + (acc.current_balance || 0), 0)
-      const avgInterestRate = validAccounts.reduce((sum, acc) => sum + (acc.interest_rate || 0), 0) / validAccounts.length
-      const monthlyPayments = validAccounts.reduce((sum, acc) => sum + (acc.minimum_payment || 0), 0)
-      const payoffPlan = calculateDebtPayoff(validAccounts)
-      
+
+      // Filter accounts matching user's currency
+      const matchingCurrencyAccounts = validAccounts.filter(acc => acc.currency === userCurrency)
+
+      // Calculate total debt
+      const totalDebt = calculateTotalDebt(matchingCurrencyAccounts)
+
+      // Calculate weighted average interest rate
+      const weightedInterestRate = matchingCurrencyAccounts.reduce((sum, acc) => {
+        return sum + (acc.interest_rate * (acc.current_balance / totalDebt))
+      }, 0)
+
+      // Calculate payoff details
+      const payoffDetails = calculateDebtPayoff(matchingCurrencyAccounts)
+
       setSummaryStats({
         totalDebt,
-        avgInterestRate,
-        monthlyPayments,
-        projectedPayoff: payoffPlan.totalMonths
+        avgInterestRate: weightedInterestRate,
+        totalMinPayments: payoffDetails.monthlyPayment,
+        recommendedPayment: payoffDetails.monthlyPayment,
+        projectedPayoff: payoffDetails.totalMonths,
+        totalInterest: payoffDetails.totalInterestPaid
       })
+
+      setPayoffPlan(payoffDetails)
+
     } catch (err) {
       console.error('Error fetching accounts:', err)
-      setError(err instanceof Error ? err.message : 'An error occurred')
+      setError('Failed to load accounts')
     } finally {
       setLoading(false)
     }
   }
 
+  useEffect(() => {
+    fetchAccounts()
+  }, [userCurrency])
+
+  // Handle payment amount changes
+  const handlePaymentChange = (newPayment: number) => {
+    if (!accounts.length) return
+
+    const totalMinPayment = accounts.reduce((sum, acc) => {
+      if (acc.type === 'credit_card' && acc.min_payment_percentage) {
+        return sum + Math.max(
+          (acc.min_payment_percentage / 100) * acc.current_balance,
+          acc.min_payment_amount || 0
+        )
+      }
+      return sum + (acc.min_payment_amount || 0)
+    }, 0)
+
+    const newPayoffPlan = calculateDebtPayoff(accounts, Math.max(newPayment, totalMinPayment))
+    setPayoffPlan(newPayoffPlan)
+    
+    // Update summary stats with new calculation
+    setSummaryStats({
+      totalDebt: accounts.reduce((sum, acc) => sum + acc.current_balance, 0),
+      avgInterestRate: accounts.reduce((sum, acc) => sum + ((acc.interest_rate || 0) * acc.current_balance), 0) / 
+        accounts.reduce((sum, acc) => sum + acc.current_balance, 0),
+      recommendedPayment: newPayment,
+      totalMinPayments: totalMinPayment,
+      projectedPayoff: newPayoffPlan.totalMonths,
+      totalInterest: newPayoffPlan.totalInterestPaid
+    })
+  }
+
+  // Format payoff duration for display
+  const formatPayoffDuration = (months: number): string => {
+    if (months <= 0) return 'No payment needed'
+    if (months === -1) return 'Unable to calculate'
+
+    const years = Math.floor(months / 12)
+    const remainingMonths = months % 12
+
+    if (years === 0) return `${remainingMonths} months`
+    if (remainingMonths === 0) return `${years} years`
+    return `${years} years, ${remainingMonths} months`
+  }
+
+  if (error) {
+    return <div className="text-red-600">{error}</div>
+  }
+
+  if (!payoffPlan) {
+    return (
+      <div className="py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h1 className="text-2xl font-semibold text-gray-900">Debt Dashboard</h1>
+          <div className="mt-4">Loading debt payoff plan...</div>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div 
+    <div
       className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in duration-500"
       role="main"
       aria-label="Debt Management Dashboard"
     >
       {error && (
-        <div 
+        <div
           className="mb-4 bg-red-50 border border-red-200 text-red-800 rounded-lg p-4"
           role="alert"
           aria-live="polite"
         >
-          <p>{error}</p>
+          {error}
         </div>
       )}
 
-      <div 
+      <div
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
         role="region"
         aria-label="Financial Summary"
       >
         <SummaryCard
           title="Total Debt"
-          value={formatCurrency(summaryStats.totalDebt, defaultCurrency)}
+          value={formatCurrency(summaryStats.totalDebt, userCurrency)}
           description="Across all accounts"
           icon={BanknotesIcon}
           loading={loading}
@@ -173,42 +245,48 @@ export function DebtDashboard() {
         <SummaryCard
           title="Average Interest Rate"
           value={`${summaryStats.avgInterestRate.toFixed(2)}%`}
-          description="Weighted average"
+          description="Weighted by balance"
           icon={ChartBarIcon}
           loading={loading}
         />
         <SummaryCard
-          title="Monthly Payments"
-          value={formatCurrency(summaryStats.monthlyPayments, defaultCurrency)}
-          description="Total minimum payments"
+          title="Monthly Payment"
+          value={formatCurrency(summaryStats.recommendedPayment, userCurrency)}
+          description={`Minimum required: ${formatCurrency(summaryStats.totalMinPayments, userCurrency)}`}
           icon={CreditCardIcon}
           loading={loading}
         />
         <SummaryCard
-          title="Projected Payoff"
-          value={`${summaryStats.projectedPayoff} months`}
-          description="At current payment rate"
+          title="Debt Free In"
+          value={formatPayoffDuration(summaryStats.projectedPayoff)}
+          description={`Total interest: ${formatCurrency(summaryStats.totalInterest, userCurrency)}`}
           icon={ArrowTrendingDownIcon}
           loading={loading}
         />
       </div>
 
-      <div 
+      <div
         className="space-y-8"
         role="region"
         aria-label="Debt Management Tools"
       >
-        <div className="animate-in slide-in-from-bottom duration-500">
-          <DebtAccountList accounts={accounts} onAccountsChange={fetchAccounts} />
-        </div>
+        <DebtAccountList
+          accounts={accounts}
+          onAccountsChange={fetchAccounts}
+        />
 
-        <div className="animate-in slide-in-from-bottom duration-500 delay-100">
-          <DebtPayoffCalculator payoffPlan={calculateDebtPayoff(accounts)} totalDebt={calculateTotalDebt(accounts)} />
-        </div>
-
-        <div className="animate-in slide-in-from-bottom duration-500 delay-200">
-          <DebtRecommendations recommendations={generateDebtRecommendations(accounts)} />
-        </div>
+        {accounts.length > 0 && (
+          <>
+            <DebtPayoffCalculator
+              payoffPlan={payoffPlan}
+              totalDebt={summaryStats.totalDebt}
+              onPaymentChange={handlePaymentChange}
+            />
+            <DebtRecommendations
+              recommendations={generateDebtRecommendations(accounts)}
+            />
+          </>
+        )}
       </div>
     </div>
   )

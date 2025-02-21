@@ -1,401 +1,392 @@
-# Lessons
+# Project Overview
 
-- For website image paths, always use the correct relative path (e.g., 'images/filename.png') and ensure the images directory exists
-- For search results, ensure proper handling of different character encodings (UTF-8) for international queries
-- Add debug information to stderr while keeping the main output clean in stdout for better pipeline integration
-- When using seaborn styles in matplotlib, use 'seaborn-v0_8' instead of 'seaborn' as the style name due to recent seaborn version changes
-- When using Jest, a test suite can fail even if all individual tests pass, typically due to issues in suite-level setup code or lifecycle hooks
-- For consistent UI design, use these icon sizes:
-  - Regular icons: 16px (h-4 w-4)
-  - Empty state icons: 20px (h-5 w-5)
-  - Feature icons: 24px (h-6 w-6)
-- Use gradient backgrounds (from-white to-gray-50) for cards with border-gray-100 for consistency
-- TypeScript Lessons:
-  - When extending database types with required fields that are nullable in the DB, use `Omit` to remove the original field and add it back with the non-null type
-  - When using custom components with specific prop types alongside UI library components, rename imported components (e.g., `Select as UISelect`) to avoid naming conflicts
-  - For form components that handle multiple value types (e.g., Select dropdowns), always properly type-assert the values to match the expected union types
-  - When using Slider components from UI libraries, check if they expect single values or arrays, and adjust accordingly
-  - Use consistent imports for Supabase client: '@/lib/supabase-client' instead of '@/lib/supabase'
-  - Import types from '@/types/supabase' for database types
-- Database
-  - Use the existing `profiles` table instead of creating a new `user_profiles` table
-  - Profile table uses `id` as the primary key, not `user_id`
-  - Avatar URL is stored as text in the profiles table
-  - For account deletion, use soft delete by setting `is_active = false` instead of removing the record
-  - Always filter accounts with `is_active = true` when fetching
-- Next.js
-  - Must configure `next.config.js` with `remotePatterns` to allow external images in next/image component
-  - Current Supabase project URL: qvjifftqmpmcvbqhylxv.supabase.co
-  - Use Next.js Link component for client-side navigation instead of window.location
-- Supabase
-  - Storage buckets need proper RLS policies:
-    - Public access for viewing avatars
-    - Authenticated access for uploading
-    - User can only modify their own files
-  - Use `auth.uid()::text` when comparing with string user IDs in policies
-  - Set proper MIME types and file size limits on buckets
-- UI Components:
-  - Use consistent styling for cards: bg-white shadow-sm border border-gray-100
-  - For empty states, use centered layout with icon, title, description, and action button
-  - Use Amount component for displaying currency values with proper formatting
-  - Keep action buttons (edit/delete) in the last column of tables
-  - Use consistent spacing in forms: space-y-4 for form groups
-  - Add loading states with Skeleton components for better UX
-- Account Management:
-  - Use account IDs instead of user IDs when fetching account data
-  - Always validate account ownership before performing actions
-  - Use account type (e.g., checking, savings) to determine available actions
-  - Implement account linking for external accounts
-  - Use account categories for budgeting and tracking
+## Current Tasks Status
 
-## Windsurf learned
+### Active Tasks
+1. Account Summary UI Enhancement
+   - Implementing 2x2 grid layout with compact design
+   - Enhancing visual hierarchy and interactions
 
-- For search results, ensure proper handling of different character encodings (UTF-8) for international queries
-- Add debug information to stderr while keeping the main output clean in stdout for better pipeline integration
-- When using seaborn styles in matplotlib, use 'seaborn-v0_8' instead of 'seaborn' as the style name due to recent seaborn version changes
-- Use 'gpt-4o' as the model name for OpenAI's GPT-4 with vision capabilities 
+### Recently Completed
+1. Account Balance Display
+   - Fixed debt account handling
+   - Improved currency formatting
+2. Analytics Page TypeScript
+   - Fixed type mismatches
+   - Added proper null handling
+3. Loan Form Improvements
+   - Fixed interest rate handling
+   - Enhanced form consistency
 
-# Scratchpad
+## Technical Implementation Details
 
-# Current Task: Account Balance Display Improvements
+### UI Components
+- AccountSummary:
+  - Tailwind CSS grid (grid-cols-2)
+  - Max height with overflow scroll
+  - Color-coded account types
+  - Responsive design
+  - Sparkline integration
 
-## Objective
-Improve how debt accounts (loans and credit cards) are displayed in the dashboard to properly reflect negative balances.
-
-## Progress
-[X] Fix loan and credit card display in the Amount component
-[X] Update total balance calculation in AccountSummary
-[X] Make loan amounts show as negative and red in the dashboard
-[X] Reset form fields when Add Account modal opens
-[X] Close Add Account modal after successful submission
-[X] Add validation for loan-specific fields
-[X] Add tooltips to explain debt amounts
-[X] Add tooltips for EMI and other loan terms
-[X] Add auto-calculation for monthly installment
-[X] Fix duplicate interest rate field
-[X] Improve mobile responsiveness
-
-## Mobile Responsiveness Improvements
-1. AddAccountModal:
-   - Full-width modal on mobile, max-width on larger screens
-   - Responsive grid layout (1 column on mobile, 2 columns on desktop)
-   - Stacked buttons on mobile, side-by-side on desktop
-   - Improved form field spacing and readability
-   - Better touch targets for buttons and inputs
-
-2. AccountSummary:
-   - Simplified card design for better mobile viewing
-   - Responsive padding and spacing
-   - Horizontal scrolling for wide content on small screens
-   - Stacked header on mobile (title above balance)
-   - Optimized account list for mobile viewing
-   - Better loading state design
-
-## Next Steps
-[ ] Consider adding transaction history view
-[ ] Add account editing functionality
-[ ] Implement account deletion
-[ ] Add data export feature
-
-## Technical Details
-- Using Amount component for consistent balance display
-- Tailwind CSS for styling (text-red-600 for debt amounts)
-- Currency conversion support with preferred currency
-- Added reusable Tooltip component for better UX
-- Form validation with field-specific error messages
-- Auto-calculation for loan installments and end date
-
-## UI Components Modified
-- Amount component: Added debt account handling
-- AccountSummary: Updated balance calculations and display
-- AddAccountModal: Added form reset and validation
-- Added new Tooltip component for explanatory text
-
-## Lessons Learned
-1. Debt Account Handling:
-   - Both loans and credit cards should be treated as debt (negative balances)
-   - Use -Math.abs() to ensure debt amounts are always negative
-   - Display debt amounts in red (text-red-600) with a minus sign
-   - Subtract debt amounts from total balance calculations
-
-2. Form Management:
-   - Reset form fields when modal opens for better UX
-   - Clear all fields including loan-specific ones
-   - Set default values (e.g., checking for type, USD for currency)
-   - Validate all required fields with clear error messages
-
-3. User Experience:
-   - Add tooltips to explain financial terms
-   - Show helpful icons (ⓘ) next to complex terms
-   - Use cursor-help to indicate additional information
-   - Provide immediate feedback on invalid inputs
-   - Auto-calculate fields where possible
-   - Allow manual override of calculated fields
-
-4. Mobile Design:
-   - Use responsive grid layouts
-   - Stack elements on mobile for better readability
-   - Ensure touch targets are large enough
-   - Handle horizontal scrolling gracefully
-   - Provide appropriate spacing for mobile viewing
-
-## Notes
-- Maintain consistent handling of debt accounts across all components
-- Follow the pattern of showing debts in red with negative values
-- Keep currency conversion in mind for all balance displays
-- Validate all loan fields before submission
-- Provide clear error messages for invalid inputs
-- Use tooltips to explain complex financial terms
-- Ensure all components are mobile-responsive
-
-# Current Task: Fix Analytics Page TypeScript Errors
-
-## Objective
-Fix TypeScript errors in the analytics page related to transaction type mismatches and null handling.
-
-## Progress
-[X] Update TopTransactions component to handle null descriptions
-[X] Export Transaction interface from TopTransactions
-[X] Fix type mapping in AnalyticsPage
-[X] Add proper loading states
-[X] Add fallback text for null descriptions
-
-## Technical Details
-- Transaction interface now includes nullable description
-- Database transaction types properly mapped to analytics types
-- Loading states added with spinner component
-- Proper handling of undefined data with default empty arrays
-- Type conversion from database transaction to analytics transaction
-
-## Lessons Learned
-- When dealing with database types, always check for nullable fields
-- Export and reuse interfaces to maintain type consistency across components
-- Use optional chaining and null coalescing for safer data access
-- Add loading states to prevent undefined data errors
-- Add fallback values for nullable fields in the UI
-- When mapping between types, explicitly handle all possible values (e.g., transfer → expense)
-
-## Next Steps
-[ ] Add error boundary for better error handling
-[ ] Add retry mechanism for failed data fetches
-[ ] Add skeleton loading state for better UX
-[ ] Add pagination for large transaction lists
-[ ] Add sorting options for transactions
-
-## Dependencies
-- React with TypeScript
-- Next.js
-- Supabase for data storage
-- Tailwind CSS for styling
-- Heroicons for icons
-
-## Notes
-- Always handle loading states to prevent undefined data errors
-- Use proper TypeScript types from database schema
-- Add fallback UI for null/undefined values
-- Consider the complete type mapping when converting between types
-
-# Current Task: Account Balance Display Improvements
-
-## Objective
-Fix inconsistent currency formatting and balance calculations in the dashboard, particularly for debt accounts (loans and credit cards). Add helpful currency conversion information and balance trends.
-
-## Progress
-[X] Fix inconsistent currency prefix placement
-[X] Fix double-negative representation of loan balances
-[X] Fix inconsistent spacing between currency code and amount
-[X] Improve handling of negative amounts for debt accounts
-[X] Simplify balance calculation logic
-[X] Make currency formatting consistent
-[X] Add exchange rate display in tooltips
-[X] Add currency conversion info to total balance
-[X] Add helper functions for exchange rate formatting
-[X] Add balance trends with sparkline charts
-[X] Create balance_history table
-[X] Add fallback trend data when history is missing
-
-## Technical Details
-- Use formatCurrencyWithCode for consistent currency display
-- Use -Math.abs() to ensure proper negative values for debt accounts
-- Removed redundant balance negation in total calculation
-- Handle both preferred and original currency display consistently
-- Apply consistent text color for debt accounts (text-red-600)
-- Added getExchangeRate and formatExchangeRate helper functions
-- Added tooltips showing exchange rates and original amounts
-- Created reusable Sparkline component for balance trends
-- Added balance_history table with RLS policies
-- Implemented balance trend visualization
-
-## Lessons Learned
-1. Currency Formatting:
-   - Let the currency formatter handle negative signs
-   - Don't manually concatenate currency symbols
-   - Use consistent spacing between currency code and amount
-   - Handle both preferred and original currency display the same way
-   - Show exchange rates to help users understand conversions
-
-2. Balance Calculations:
-   - Debt account balances should already be negative in the database
-   - Don't double-negate balances in calculations
-   - Use Math.abs() to ensure proper sign handling
-   - Keep calculations simple and consistent
-   - Consider exchange rates in total calculations
-
-3. Code Organization:
-   - Group related currency formatting logic
-   - Apply consistent styling patterns
-   - Use helper functions for common operations
-   - Keep display logic separate from calculations
-   - Create reusable currency utilities
-   - Create reusable UI components
-
-4. User Experience:
-   - Show exchange rates in tooltips
-   - Make converted amounts clear
-   - Add hover states for more information
-   - Use consistent cursor styles for interactive elements
-   - Provide context for currency conversions
-   - Show balance trends for better insights
-
-5. Database Design:
-   - Use proper data types for financial data (numeric(19,4))
-   - Add appropriate foreign key constraints
-   - Implement RLS policies for security
-   - Include audit fields (created_at, updated_at)
-   - Add proper indexes for performance
-
-## Next Steps
-[X] Add currency conversion rate display
-[X] Add tooltips for currency conversion
-[X] Add balance trends
-[ ] Add account grouping by type
-[ ] Consider adding currency preferences to account settings
-[ ] Add visual indicators for exchange rate changes
-[ ] Add date range selection for trends
-[ ] Add trend analysis insights
-
-## Notes
-- Keep currency formatting consistent across all components
-- Ensure proper sign handling for all account types
-- Use consistent color coding for debt amounts
-- Follow the same patterns in other financial displays
-- Make currency conversion transparent to users
-- Consider performance with large history datasets
-- Add proper error handling for missing data
-
-# Current Task: Account Card Layout Optimization
-
-## Objective
-Improve the layout and design of account cards in the dashboard to be more compact and visually appealing.
-
-## Progress
-[X] Create separate cards for each account type with matching gradients
-[X] Add account count to each section
-[X] Attempted to make cards more compact by putting amount on same line (reverted)
-[X] Maintain consistent styling with summary cards
-[X] Restore detailed loan form with all required fields
-
-## Technical Details
-- Using Tailwind CSS for styling
-- Card components with gradient backgrounds
-- Heroicons for consistent iconography
-- Responsive grid layout
-- Currency conversion support
-- Loan form fields:
-  - Loan term (months)
-  - Total loan amount
-  - Monthly installment
-  - Loan start/end dates
-  - EMI enabled toggle
-  - Interest rate and due date
-
-## UI Components Used
-- Card: bg-white with gradient overlay
-- Icons: h-10 w-10 for consistent sizing
-- Text: text-sm for names, text-xs for types
-- Colors: blue/red/amber/green-500/10 for backgrounds
-- Form inputs: consistent border-gray-300 and focus states
-
-## Lessons Learned
-- Keep consistent padding (p-6) for visual harmony
-- Maintain account type display for better context
-- Preserve currency conversion display
-- Use gradient backgrounds to match summary cards
-- Group related accounts (Bank+Credit, Loans+Investments)
-- For loan accounts, include all necessary fields:
-  - Basic fields: name, type, currency, balance
-  - Loan-specific: term, dates, amounts, EMI
-  - Optional: institution name
-- Use proper input types (number, date) with appropriate step values
-- Add min/max constraints where applicable (e.g., loan term > 0)
-- Maintain consistent form field styling across all input types
-
-## Next Steps
-[ ] Consider mobile responsiveness improvements
-[ ] Review hover states and interactions
-[ ] Test with different account name lengths
-[ ] Consider adding account balance trends
-[ ] Add form validation for loan fields
-[ ] Consider auto-calculating fields (e.g., monthly installment)
-[ ] Add tooltips for EMI and other complex terms
-
-## Notes
-- Account grouping improves visual organization
-- Consistent styling enhances user experience
-- Preserve important account details
-- Balance between compactness and readability
-- Loan form needs all fields for proper tracking
-
-# Current Task: Loan Form Improvements
-
-## Objective
-Improve the loan form functionality and user experience by fixing issues with interest rate input and ensuring consistency between add and edit forms.
-
-## Progress
-[X] Fix duplicate interest rate field in AddAccountModal
-[X] Make interest rate field editable
-[X] Add auto-calculate toggle for loan interest rate
-[X] Add collateral and loan purpose fields
-[X] Add EMI toggle with tooltip
-[X] Improve form validation and error messages
-[X] Make form fields consistent between add and edit modes
-[X] Improve mobile responsiveness
-
-## Technical Details
+### Form Handling
 - Interest rate field shared between credit cards and loans
-- Auto-calculate toggle only shows for loans
-- EMI toggle affects auto-calculation
-- Form validation with field-specific error messages
-- Consistent styling using Tailwind CSS
-- Responsive grid layout with sm:col-span-2
+- Auto-calculate toggle for loans
+- EMI calculation integration
+- Responsive grid layout
+- Form validation with field-specific messages
+
+### Data Management
+- Amount component for balance display
+- Currency conversion support
+- Balance history tracking
+- Transaction interface with nullable fields
+- Type conversion handling
+
+### Mobile Optimization
+- Full-width modals on mobile
+- Responsive grid layouts
+- Stacked headers and buttons
+- Touch-optimized targets
+- Horizontal scroll handling
 
 ## Lessons Learned
-1. Form Field Management:
-   - Keep shared fields (like interest rate) in one place
-   - Show/hide features based on account type
-   - Use consistent validation and error handling
-   - Maintain field state properly
+
+### UI/UX Design
+1. Icon System:
+   - Regular icons: 16px (h-4 w-4) for inline and list items
+   - Empty state icons: 20px (h-5 w-5) for placeholders
+   - Feature icons: 24px (h-6 w-6) for card headers
+   - Use consistent stroke width (1.5 for small, 2 for large)
+   - Match icon colors with text colors for harmony
+
+2. Card Design:
+   - Use gradient backgrounds (from-white to-gray-50)
+   - Consistent border (border-gray-100)
+   - Shadow hierarchy:
+     - Default: shadow-sm
+     - Hover: shadow-md
+     - Active: shadow-lg
+   - Rounded corners (rounded-lg)
+   - Padding scale: p-4 for compact, p-6 for spacious
+
+3. Layout Patterns:
+   - Grid-based organization for predictability
+   - Mobile-first approach with responsive breakpoints
+   - Handle overflow with max-height and auto scroll
+   - Maintain consistent spacing:
+     - Between sections: space-y-8
+     - Between items: space-y-4
+     - Between related elements: space-x-2
+   - Use flex layouts for alignment
+   - Stack on mobile, grid on desktop
+
+4. Visual Hierarchy:
+   - Color coding for status:
+     - Positive: emerald-600
+     - Negative: red-600
+     - Neutral: gray-600
+   - Typography scale:
+     - Headers: text-lg font-semibold
+     - Subheaders: text-base font-medium
+     - Body: text-sm
+     - Caption: text-xs
+   - Interactive states:
+     - Hover effects
+     - Active states
+     - Focus rings
+   - Loading states with skeletons
+
+### Data Handling
+1. Debt Account Management:
+   - Always use -Math.abs() for debt amounts
+   - Display in red (text-red-600)
+   - Show minus sign consistently
+   - Include in total calculations correctly
+   - Handle zero balances appropriately
+   - Support both positive and negative trends
+
+2. Currency Formatting:
+   - Consistent prefix placement
+   - Proper spacing between symbol and amount
+   - Handle different currency codes
+   - Support decimal places appropriately
+   - Show exchange rates in tooltips
+   - Format large numbers with separators
+   - Handle zero and negative amounts
+   - Support multiple currency displays
+
+3. State Management:
+   - Keep source of truth in database
+   - Cache frequently accessed data
+   - Handle loading states
+   - Provide fallback values
+   - Update optimistically
+   - Handle errors gracefully
+   - Maintain data consistency
+
+4. Data Validation:
+   - Validate on both client and server
+   - Show clear error messages
+   - Handle edge cases
+   - Support different data types
+   - Prevent invalid submissions
+   - Maintain audit trail
+
+### TypeScript Practices
+1. Database Types:
+   - Handle nullable fields explicitly
+   - Use proper type assertions
+   - Export interfaces for reuse
+   - Map types correctly
+   - Handle optional fields
+   - Use strict null checks
+   - Document complex types
+   - Create utility types for common patterns
+
+2. Component Types:
+   - Rename to avoid conflicts
+   - Use proper imports
+   - Handle undefined states
+   - Type props correctly
+   - Use generics when needed
+   - Create reusable types
+   - Document prop requirements
+   - Handle event types
+
+3. Error Handling:
+   - Type error responses
+   - Handle async errors
+   - Provide type guards
+   - Use discriminated unions
+   - Handle edge cases
+   - Document error states
+   - Create error boundaries
+   - Log errors appropriately
+
+4. Type Safety:
+   - Use strict mode
+   - Avoid any type
+   - Create custom types
+   - Use type inference
+   - Handle null checks
+   - Document type decisions
+   - Review type coverage
+   - Maintain type consistency
+
+### Form Management
+1. Field Handling:
+   - Clear fields on modal open
+   - Validate all required fields
+   - Show clear error messages
+   - Auto-calculate when possible
+   - Handle dependencies
+   - Support field masking
+   - Implement field constraints
+   - Maintain field state
 
 2. User Experience:
-   - Add tooltips for complex terms
-   - Allow both auto-calculation and manual input
-   - Show clear feedback on field changes
-   - Keep form layout consistent
+   - Add helpful tooltips
+   - Show calculation toggles
+   - Maintain consistency
+   - Provide clear feedback
+   - Support keyboard navigation
+   - Handle form submission
+   - Show loading states
+   - Prevent double submission
 
-3. Code Organization:
-   - Group related fields together
-   - Share common functionality between forms
-   - Use consistent styling patterns
-   - Handle form state changes properly
+3. Validation Rules:
+   - Required fields
+   - Number ranges
+   - Date constraints
+   - Format patterns
+   - Cross-field validation
+   - Custom rules
+   - Async validation
+   - Error messaging
+
+4. Form Architecture:
+   - Reusable components
+   - State management
+   - Event handling
+   - Error boundaries
+   - Loading states
+   - Success feedback
+   - Field dependencies
+   - Form persistence
+
+### Mobile Responsiveness
+1. Layout Adaptation:
+   - Stack on small screens
+   - Adjust spacing
+   - Resize text
+   - Reorder content
+   - Handle navigation
+   - Optimize images
+   - Manage overflow
+   - Support touch
+
+2. Interactive Elements:
+   - Larger touch targets
+   - Clear focus states
+   - Swipe actions
+   - Pull to refresh
+   - Bottom sheets
+   - Modal handling
+   - Keyboard support
+   - Gesture support
+
+3. Performance:
+   - Optimize loading
+   - Reduce animations
+   - Handle offline
+   - Cache data
+   - Lazy loading
+   - Code splitting
+   - Resource optimization
+   - Monitor metrics
+
+### Security Practices
+1. Data Protection:
+   - Validate inputs
+   - Sanitize outputs
+   - Encrypt sensitive data
+   - Handle permissions
+   - Implement RLS
+   - Audit trails
+   - Rate limiting
+   - Error handling
+
+2. Authentication:
+   - Secure routes
+   - Handle sessions
+   - Manage tokens
+   - Implement MFA
+   - Password rules
+   - Account recovery
+   - Session timeout
+   - Activity logging
+
+### Testing Strategies
+1. Unit Testing:
+   - Component tests
+   - Function tests
+   - Type testing
+   - Mock services
+   - Test coverage
+   - Edge cases
+   - Error scenarios
+   - Performance tests
+
+2. Integration Testing:
+   - API testing
+   - Database testing
+   - Auth testing
+   - Form submission
+   - Error handling
+   - State management
+   - Route testing
+   - Event handling
+
+### Exchange Rates Implementation
+1. Database Design:
+   - Use JSONB for flexible rate storage
+   - Include timestamps for last_updated and next_update
+   - Implement RLS policies for security
+   - Handle table creation through migrations
+   - Store base currency explicitly
+
+2. API Integration:
+   - Use exchange-rate-api.com for rates
+   - Cache rates to minimize API calls
+   - Include fallback rates for failures
+   - Support specific currency codes
+   - Handle API response validation
+   - Log rate update attempts
+
+3. Security Practices:
+   - Use environment variables for secrets
+   - Implement request authentication
+   - Apply RLS policies properly
+   - Validate API responses
+   - Handle errors gracefully
+   - Log security-relevant events
+
+4. Cron Job Setup:
+   - Use pg_cron for scheduling
+   - Handle existing job cleanup
+   - Set appropriate permissions
+   - Use service role for updates
+   - Include error handling
+   - Monitor job execution
+
+5. Error Handling:
+   - Provide fallback rates
+   - Log error details
+   - Handle API failures
+   - Validate data integrity
+   - Return appropriate status
+   - Maintain data consistency
 
 ## Next Steps
-[ ] Add field validation for collateral and loan purpose
-[ ] Consider adding more loan-specific fields
-[ ] Add help text for loan terms
-[ ] Improve error message clarity
 
-## Notes
-- Keep interest rate field consistent across account types
-- Maintain clear separation between auto and manual calculation
-- Use tooltips to explain complex terms
-- Follow mobile-first design principles
+### UI Improvements
+- [ ] Add sorting options for accounts
+- [ ] Implement quick actions
+- [ ] Add filtering capabilities
+- [ ] Add search functionality
+- [ ] Add export options
+- [ ] Improve mobile responsiveness
+- [ ] Review hover states
+- [ ] Test different content lengths
+
+### Feature Additions
+- [ ] Add transaction history view
+- [ ] Implement account editing
+- [ ] Add account deletion
+- [ ] Add data export
+- [ ] Add error boundaries
+- [ ] Add retry mechanisms
+- [ ] Implement pagination
+- [ ] Add sorting options
+
+### Form Enhancements
+- [ ] Add field validation
+- [ ] Add loan-specific fields
+- [ ] Add help text
+- [ ] Improve error messages
+- [ ] Add auto-calculations
+- [ ] Add field constraints
+
+## Development Tools
+
+### Python Environment
+- Python3 venv in ./venv
+- Debug info in output
+- File reading before editing
+- LLM for text processing
+
+### Testing Tools
+- Screenshot verification
+- LLM API integration
+- Web scraping
+- Search functionality
+
+## Global Guidelines
+
+### Database Patterns
+- Use `profiles` table
+- Soft delete with `is_active`
+- Proper RLS policies
+- Type-safe queries
+
+### Next.js Configuration
+- External image handling
+- Client-side navigation
+- Proper routing patterns
+- State management
+
+### Account Management
+- Use account IDs
+- Validate ownership
+- Type-based actions
+- Category organization

@@ -1,9 +1,23 @@
 import { supabase } from '@/lib/supabase'
-import { DebtPayoffStrategy } from '@/types/debt'
 import type { Database } from '@/lib/types/database'
 
 type Tables = Database['public']['Tables']
-type Account = Tables['accounts']['Row']
+type BaseAccount = Tables['accounts']['Row']
+
+// Extend the base Account type with all required fields
+export type Account = BaseAccount & {
+  collateral: string | null
+  emi_enabled: boolean
+  loan_end_date: string | null
+  loan_purpose: string | null
+  loan_start_date: string | null
+  loan_term: number | null
+  monthly_installment: number | null
+  total_loan_amount: number | null
+  min_payment_amount: number | null
+  min_payment_percentage: number | null
+}
+
 type Debt = Tables['debts']['Row']
 
 export async function getDebtAccounts(userId: string): Promise<Account[]> {
@@ -23,31 +37,120 @@ export function calculateTotalDebt(accounts: Account[]): number {
   return accounts.reduce((total, account) => total + account.current_balance, 0)
 }
 
-export function calculateDebtPayoff(accounts: Account[]) {
+export function calculateDebtPayoff(accounts: Account[], customPayment?: number) {
   const totalDebt = calculateTotalDebt(accounts)
-  const monthlyPayment = totalDebt * 0.03 // Default to 3% of total debt
+  if (totalDebt <= 0) {
+    return {
+      monthlyPayment: 0,
+      minimumPayment: 0,
+      totalMonths: 0,
+      totalInterestPaid: 0,
+      accountPayoffs: [] as {
+        account: Account,
+        monthlyPayment: number,
+        minimumPayment: number,
+        monthsToPayoff: number,
+        totalInterest: number
+      }[]
+    }
+  }
 
-  // Sort accounts by interest rate (highest first)
-  const sortedAccounts = [...accounts].sort((a, b) => {
-    const rateA = a.interest_rate || 0
-    const rateB = b.interest_rate || 0
-    return rateB - rateA
+  // Calculate minimum required payment for each account
+  const accountMinPayments = accounts.map(acc => {
+    let minPayment = 0
+    if (acc.type === 'credit_card' && acc.min_payment_percentage) {
+      minPayment = Math.max(
+        (acc.min_payment_percentage / 100) * acc.current_balance,
+        acc.min_payment_amount || 0
+      )
+    } else {
+      minPayment = acc.min_payment_amount || 0
+    }
+    return { account: acc, minPayment }
   })
 
-  const payoffPlan = sortedAccounts.map(account => {
-    const monthsToPayoff = account.current_balance / monthlyPayment
+  const totalMinPayment = accountMinPayments.reduce((sum, { minPayment }) => sum + minPayment, 0)
+  const monthlyPayment = customPayment || totalMinPayment
+
+  // If payment is less than minimum required, return minimum payment plan
+  if (monthlyPayment < totalMinPayment) {
+    return {
+      monthlyPayment: totalMinPayment,
+      minimumPayment: totalMinPayment,
+      totalMonths: -1, // Indicates insufficient payment
+      totalInterestPaid: -1,
+      accountPayoffs: accountMinPayments.map(({ account, minPayment }) => ({
+        account,
+        monthlyPayment: minPayment,
+        minimumPayment: minPayment,
+        monthsToPayoff: -1,
+        totalInterest: -1
+      }))
+    }
+  }
+
+  // Sort accounts by interest rate (highest first) for debt avalanche method
+  const sortedAccounts = [...accountMinPayments].sort((a, b) => 
+    ((b.account.interest_rate || 0) - (a.account.interest_rate || 0))
+  )
+
+  let remainingPayment = monthlyPayment
+  const accountPayoffs = sortedAccounts.map(({ account, minPayment }) => {
+    const monthlyRate = (account.interest_rate || 0) / 100 / 12
+    let paymentForAccount = minPayment
+
+    // If there's remaining payment after covering minimums, allocate to highest interest debt
+    if (remainingPayment > minPayment) {
+      paymentForAccount = remainingPayment
+      remainingPayment = 0
+    } else {
+      remainingPayment -= minPayment
+    }
+
+    let monthsToPayoff: number
+    let totalInterest: number
+
+    if (monthlyRate === 0 || paymentForAccount <= 0) {
+      monthsToPayoff = paymentForAccount > 0 ? 
+        Math.ceil(account.current_balance / paymentForAccount) : 
+        Number.POSITIVE_INFINITY
+      totalInterest = 0
+    } else {
+      // If monthly payment is >= balance, it will be paid off in 1 month with no interest
+      if (paymentForAccount >= account.current_balance) {
+        monthsToPayoff = 1
+        totalInterest = 0
+      } else {
+        // Use amortization formula to calculate months to payoff with interest
+        monthsToPayoff = Math.ceil(
+          Math.log(paymentForAccount / (paymentForAccount - monthlyRate * account.current_balance)) /
+          Math.log(1 + monthlyRate)
+        )
+        
+        // Calculate total interest paid
+        totalInterest = (paymentForAccount * monthsToPayoff) - account.current_balance
+      }
+    }
+
     return {
       account,
-      monthsToPayoff: Math.ceil(monthsToPayoff),
-      monthlyPayment,
-      totalInterest: (account.interest_rate || 0) * account.current_balance * (monthsToPayoff / 12)
+      monthlyPayment: paymentForAccount,
+      minimumPayment: minPayment,
+      monthsToPayoff: isFinite(monthsToPayoff) ? monthsToPayoff : -1,
+      totalInterest: Math.max(totalInterest, 0)
     }
   })
 
+  // Calculate total months and interest
+  const maxMonths = Math.max(...accountPayoffs.map(a => a.monthsToPayoff))
+  const totalInterest = accountPayoffs.reduce((sum, a) => sum + a.totalInterest, 0)
+
   return {
-    totalMonths: Math.max(...payoffPlan.map(p => p.monthsToPayoff)),
     monthlyPayment,
-    accountPayoffs: payoffPlan
+    minimumPayment: totalMinPayment,
+    totalMonths: maxMonths,
+    totalInterestPaid: totalInterest,
+    accountPayoffs
   }
 }
 

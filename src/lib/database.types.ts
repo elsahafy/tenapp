@@ -930,6 +930,7 @@ export type Database = {
         | "BHD"
         | "KWD"
         | "OMR"
+        | "EGP"
       debt_type:
         | "mortgage"
         | "credit_card"

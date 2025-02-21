@@ -1,18 +1,27 @@
 'use client'
 
-import { useState } from 'react'
-import { ChartBarIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
-import { EditAccountModal } from '../accounts/EditAccountModal'
-import { DeleteAccountModal } from '../accounts/DeleteAccountModal'
-import DebtPayoffHistory from './DebtPayoffHistory'
 import type { Database } from '@/lib/database.types'
+import { ChartBarIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { useState } from 'react'
+import { DeleteAccountModal } from '../accounts/DeleteAccountModal'
+import { EditAccountModal } from '../accounts/EditAccountModal'
+import DebtPayoffHistory from './DebtPayoffHistory'
 
 type Tables = Database['public']['Tables']
-type Account = Omit<Tables['accounts']['Row'], 'is_active' | 'institution'> & {
-  balance: number;
-  account_number: string;
-  is_active: boolean;
-  institution: string;
+type BaseAccount = Tables['accounts']['Row']
+
+// Extend the base Account type with all required fields
+type Account = BaseAccount & {
+  collateral: string | null
+  emi_enabled: boolean
+  loan_end_date: string | null
+  loan_purpose: string | null
+  loan_start_date: string | null
+  loan_term: number | null
+  monthly_installment: number | null
+  total_loan_amount: number | null
+  min_payment_amount: number | null
+  min_payment_percentage: number | null
 }
 
 interface DebtAccountListProps {

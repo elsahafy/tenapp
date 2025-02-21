@@ -145,4 +145,8 @@ export function validateCurrencyCode(code: string): boolean {
   return code in currencies
 }
 
-export const defaultCurrency = 'USD'
+export function getDefaultCurrency(): string {
+  // This will be handled by the CurrencyProvider context
+  // The actual default is managed in the CurrencyProvider component
+  return 'USD'
+}

@@ -1,10 +1,22 @@
 'use client'
 
-import { Fragment, useState } from 'react'
-import { Dialog, Transition } from '@headlessui/react'
-import { XMarkIcon } from '@heroicons/react/24/outline'
+import { Fragment, useState, useEffect } from 'react'
+import { Dialog, Transition, Combobox } from '@headlessui/react'
+import * as HeroIcons from '@heroicons/react/24/outline'
+import { ChevronUpDownIcon } from '@heroicons/react/20/solid'
 import { supabase } from '@/lib/supabase'
 import { Account, Transaction } from '@/types'
+import { useForm, Controller } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+
+interface Category {
+  id: string
+  name: string
+  type: 'income' | 'expense' | 'transfer'
+  color: string | null
+  icon: string | null
+}
 
 interface AddTransactionModalProps {
   open: boolean
@@ -12,6 +24,90 @@ interface AddTransactionModalProps {
   onSuccess: () => void
   accountId?: string
   accounts: Account[]
+}
+
+const schema = z.object({
+  description: z.string().min(1, 'Description is required'),
+  amount: z.number().min(0.01, 'Amount must be greater than 0'),
+  type: z.enum(['income', 'expense', 'transfer'] as const),
+  account_id: z.string().min(1, 'Account is required'),
+  transfer_account_id: z.string().optional(),
+  category_id: z.string().optional(),
+  date: z.date(),
+  is_recurring: z.boolean().default(false),
+  frequency: z.enum(['daily', 'weekly', 'monthly', 'quarterly', 'yearly'] as const).optional(),
+  end_date: z.date().optional().nullable(),
+  day_of_month: z.number().min(1).max(31).optional(),
+  day_of_week: z.number().min(0).max(6).optional(),
+  week_of_month: z.number().min(1).max(5).optional()
+})
+
+type FormData = z.infer<typeof schema>
+
+// Group categories by their group (based on name)
+const groupCategories = (categories: Category[]) => {
+  const groups: { [key: string]: Category[] } = {}
+  
+  categories.forEach(category => {
+    let group = 'Other'
+    
+    if (category.type === 'income') {
+      group = 'Income'
+    } else {
+      // Extract group from category name
+      if (category.name.includes('Rent') || category.name.includes('Utilities') || category.name.includes('Home')) {
+        group = 'Housing & Utilities'
+      } else if (category.name.includes('Fuel') || category.name.includes('Transport') || category.name.includes('Car') || category.name.includes('Parking')) {
+        group = 'Transportation'
+      } else if (category.name.includes('Groceries') || category.name.includes('Restaurant') || category.name.includes('Coffee')) {
+        group = 'Food & Dining'
+      } else if (category.name.includes('Clothing') || category.name.includes('Electronics')) {
+        group = 'Shopping'
+      } else if (category.name.includes('Healthcare') || category.name.includes('Pharmacy') || category.name.includes('Fitness')) {
+        group = 'Health & Wellness'
+      } else if (category.name.includes('Movies') || category.name.includes('Games') || category.name.includes('Hobbies')) {
+        group = 'Entertainment'
+      } else if (category.name.includes('Books') || category.name.includes('Courses') || category.name.includes('Software')) {
+        group = 'Education'
+      } else if (category.name.includes('Insurance') || category.name.includes('Taxes') || category.name.includes('Bank') || category.name === 'Investments') {
+        group = 'Financial'
+      } else if (category.name.includes('Hair') || category.name.includes('Beauty') || category.name.includes('Spa') || category.name.includes('Personal Care')) {
+        group = 'Personal Care'
+      } else if (category.name.includes('Gifts') || category.name.includes('Charity') || category.name.includes('Other')) {
+        group = 'Miscellaneous'
+      }
+    }
+    
+    if (!groups[group]) {
+      groups[group] = []
+    }
+    groups[group].push(category)
+  })
+  
+  // Sort categories within each group
+  Object.keys(groups).forEach(group => {
+    groups[group].sort((a, b) => a.name.localeCompare(b.name))
+  })
+  
+  return groups
+}
+
+// Component to render a category option with icon
+function CategoryOption({ category, className = '' }: { category: Category, className?: string }) {
+  // Convert icon name to the actual icon component
+  const IconComponent = category.icon ? (HeroIcons as any)[category.icon.charAt(0).toUpperCase() + category.icon.slice(1) + 'Icon'] : null
+
+  return (
+    <div className={`flex items-center gap-2 ${className}`}>
+      {IconComponent && (
+        <IconComponent
+          className="h-4 w-4 flex-shrink-0"
+          style={{ color: category.color || '#6B7280' }}
+        />
+      )}
+      <span className="truncate">{category.name}</span>
+    </div>
+  )
 }
 
 export function AddTransactionModal({
@@ -23,32 +119,118 @@ export function AddTransactionModal({
 }: AddTransactionModalProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [formData, setFormData] = useState({
-    type: 'expense' as Transaction['type'],
-    amount: '',
-    description: '',
-    date: new Date().toISOString().split('T')[0],
-    category_id: '',
-    account_id: accountId || '',
+  const [isRecurring, setIsRecurring] = useState(false)
+  const [categories, setCategories] = useState<Category[]>([])
+  const [selectedType, setSelectedType] = useState<'income' | 'expense' | 'transfer'>('expense')
+  const [query, setQuery] = useState('')
+  
+  const {
+    register,
+    handleSubmit,
+    watch,
+    control,
+    formState: { errors },
+    setValue,
+  } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      type: 'expense',
+      date: new Date(),
+      is_recurring: false,
+      account_id: accountId || '',
+    },
   })
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  // Fetch categories when type changes
+  useEffect(() => {
+    if (open && selectedType) {
+      console.log('Fetching categories due to type change:', selectedType)
+      fetchCategories()
+    }
+  }, [selectedType, open])
 
+  const fetchCategories = async () => {
+    try {
+      console.log('Fetching categories for type:', selectedType)
+
+      const systemUserId = '00000000-0000-0000-0000-000000000000'
+
+      // Get all categories for the selected type
+      const { data: categories, error } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('type', selectedType)
+        .eq('is_active', true)
+        .eq('user_id', systemUserId)
+        .order('name')
+
+      if (error) {
+        console.error('Error fetching categories:', error)
+        return
+      }
+
+      console.log('Categories found:', categories?.length || 0, categories)
+      setCategories(categories || [])
+    } catch (error) {
+      console.error('Error in fetchCategories:', error)
+    }
+  }
+
+  const transactionType = watch('type')
+  const isRecurringWatch = watch('is_recurring')
+
+  // Filter categories based on search query
+  const filteredCategories = query === ''
+    ? categories
+    : categories.filter((category) =>
+        category.name
+          .toLowerCase()
+          .replace(/\s+/g, '')
+          .includes(query.toLowerCase().replace(/\s+/g, ''))
+      )
+
+  const onSubmit = async (data: FormData) => {
     try {
       setLoading(true)
       setError(null)
 
-      // Validate form
-      if (!formData.amount || !formData.account_id || !formData.category_id) {
-        throw new Error('Please fill in all required fields')
+      if (data.is_recurring) {
+        const {
+          date,
+          is_recurring,
+          frequency,
+          end_date,
+          day_of_month,
+          day_of_week,
+          week_of_month,
+          transfer_account_id,
+          category_id,
+          ...rest
+        } = data
+
+        if (!frequency) {
+          console.error('Frequency is required for recurring transactions')
+          return
+        }
+
+        await supabase.from('recurring_transactions').insert({
+          ...rest,
+          start_date: date.toISOString(),
+          end_date: end_date?.toISOString() || null,
+          frequency,
+          transfer_account_id: transfer_account_id || null,
+          category_id: category_id || null,
+          day_of_month: day_of_month || null,
+          day_of_week: day_of_week || null,
+          week_of_month: week_of_month || null
+        })
+      } else {
+        const { date, is_recurring, frequency, end_date, day_of_month, day_of_week, week_of_month, ...rest } = data
+        await supabase.from('transactions').insert({
+          ...rest,
+          date: date.toISOString()
+        })
       }
-
-      await supabase.from('transactions').insert({
-        ...formData,
-        amount: parseFloat(formData.amount),
-      })
-
       onSuccess()
       onClose()
     } catch (error) {
@@ -58,6 +240,14 @@ export function AddTransactionModal({
       setLoading(false)
     }
   }
+
+  const frequencies = [
+    { value: 'daily', label: 'Daily' },
+    { value: 'weekly', label: 'Weekly' },
+    { value: 'monthly', label: 'Monthly' },
+    { value: 'quarterly', label: 'Quarterly (every 3 months)' },
+    { value: 'yearly', label: 'Yearly' }
+  ]
 
   return (
     <Transition.Root show={open} as={Fragment}>
@@ -93,7 +283,7 @@ export function AddTransactionModal({
                     onClick={onClose}
                   >
                     <span className="sr-only">Close</span>
-                    <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+                    <HeroIcons.XMarkIcon className="h-6 w-6" aria-hidden="true" />
                   </button>
                 </div>
 
@@ -106,7 +296,7 @@ export function AddTransactionModal({
                       Add Transaction
                     </Dialog.Title>
 
-                    <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+                    <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
                       {/* Transaction Type */}
                       <div>
                         <label
@@ -117,18 +307,17 @@ export function AddTransactionModal({
                         </label>
                         <select
                           id="type"
-                          name="type"
                           className="mt-1 block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                          value={formData.type}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              type: e.target.value as Transaction['type'],
-                            })
-                          }
+                          {...register('type')}
+                          onChange={(e) => {
+                            const newType = e.target.value as 'income' | 'expense' | 'transfer'
+                            setSelectedType(newType)
+                            setValue('type', newType)
+                            setValue('category_id', '') // Reset category when type changes
+                          }}
                         >
-                          <option value="expense">Expense</option>
                           <option value="income">Income</option>
+                          <option value="expense">Expense</option>
                           <option value="transfer">Transfer</option>
                         </select>
                       </div>
@@ -144,17 +333,16 @@ export function AddTransactionModal({
                         <div className="mt-1">
                           <input
                             type="number"
-                            name="amount"
                             id="amount"
                             step="0.01"
                             min="0"
                             required
                             className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                            value={formData.amount}
-                            onChange={(e) =>
-                              setFormData({ ...formData, amount: e.target.value })
-                            }
+                            {...register('amount', { valueAsNumber: true })}
                           />
+                          {errors.amount && (
+                            <p className="text-red-500 text-sm mt-1">{errors.amount.message}</p>
+                          )}
                         </div>
                       </div>
 
@@ -169,17 +357,13 @@ export function AddTransactionModal({
                         <div className="mt-1">
                           <input
                             type="text"
-                            name="description"
                             id="description"
                             className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                            value={formData.description}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                description: e.target.value,
-                              })
-                            }
+                            {...register('description')}
                           />
+                          {errors.description && (
+                            <p className="text-red-500 text-sm mt-1">{errors.description.message}</p>
+                          )}
                         </div>
                       </div>
 
@@ -194,14 +378,10 @@ export function AddTransactionModal({
                         <div className="mt-1">
                           <input
                             type="date"
-                            name="date"
                             id="date"
                             required
                             className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                            value={formData.date}
-                            onChange={(e) =>
-                              setFormData({ ...formData, date: e.target.value })
-                            }
+                            {...register('date')}
                           />
                         </div>
                       </div>
@@ -209,23 +389,16 @@ export function AddTransactionModal({
                       {/* Account */}
                       <div>
                         <label
-                          htmlFor="account"
+                          htmlFor="account_id"
                           className="block text-sm font-medium text-gray-700"
                         >
                           Account
                         </label>
                         <select
-                          id="account"
-                          name="account"
+                          id="account_id"
                           required
                           className="mt-1 block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                          value={formData.account_id}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              account_id: e.target.value,
-                            })
-                          }
+                          {...register('account_id')}
                         >
                           <option value="">Select an account</option>
                           {accounts.map((account) => (
@@ -237,30 +410,130 @@ export function AddTransactionModal({
                       </div>
 
                       {/* Category */}
-                      <div>
+                      {selectedType !== 'transfer' && (
+                        <div className="relative">
+                          <label
+                            htmlFor="category_id"
+                            className="block text-sm font-medium text-gray-700"
+                          >
+                            Category
+                          </label>
+                          <select
+                            id="category_id"
+                            className="mt-1 block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                            {...register('category_id')}
+                          >
+                            <option value="">Select a category</option>
+                            {Object.entries(groupCategories(categories)).map(([group, groupCategories]) => (
+                              <optgroup key={group} label={group}>
+                                {groupCategories.map((category) => (
+                                  <option key={category.id} value={category.id}>
+                                    {category.name}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      {/* Recurring Transaction Toggle */}
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          {...register('is_recurring')}
+                        />
                         <label
-                          htmlFor="category"
-                          className="block text-sm font-medium text-gray-700"
+                          htmlFor="is_recurring"
+                          className="text-sm font-medium text-gray-700"
                         >
-                          Category
+                          Make this a recurring transaction
                         </label>
-                        <select
-                          id="category"
-                          name="category"
-                          required
-                          className="mt-1 block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-                          value={formData.category_id}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              category_id: e.target.value,
-                            })
-                          }
-                        >
-                          <option value="">Select a category</option>
-                          {/* Category options will be populated from parent */}
-                        </select>
                       </div>
+
+                      {/* Recurring Transaction Options */}
+                      {isRecurringWatch && (
+                        <>
+                          {/* Frequency */}
+                          <div>
+                            <label
+                              htmlFor="frequency"
+                              className="block text-sm font-medium text-gray-700"
+                            >
+                              Frequency
+                            </label>
+                            <select
+                              className="mt-1 block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                              {...register('frequency')}
+                            >
+                              <option value="">Select frequency</option>
+                              {frequencies.map((freq) => (
+                                <option key={freq.value} value={freq.value}>
+                                  {freq.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* End Date */}
+                          <div>
+                            <label
+                              htmlFor="end_date"
+                              className="block text-sm font-medium text-gray-700"
+                            >
+                              End Date (Optional)
+                            </label>
+                            <input
+                              type="date"
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                              {...register('end_date')}
+                            />
+                          </div>
+
+                          {/* Additional Recurring Options based on Frequency */}
+                          {watch('frequency') === 'monthly' && (
+                            <div>
+                              <label
+                                htmlFor="day_of_month"
+                                className="block text-sm font-medium text-gray-700"
+                              >
+                                Day of Month
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="31"
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                {...register('day_of_month', { valueAsNumber: true })}
+                              />
+                            </div>
+                          )}
+
+                          {watch('frequency') === 'weekly' && (
+                            <div>
+                              <label
+                                htmlFor="day_of_week"
+                                className="block text-sm font-medium text-gray-700"
+                              >
+                                Day of Week
+                              </label>
+                              <select
+                                className="mt-1 block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+                                {...register('day_of_week', { valueAsNumber: true })}
+                              >
+                                <option value="">Select day</option>
+                                <option value="0">Sunday</option>
+                                <option value="1">Monday</option>
+                                <option value="2">Tuesday</option>
+                                <option value="3">Wednesday</option>
+                                <option value="4">Thursday</option>
+                                <option value="5">Friday</option>
+                                <option value="6">Saturday</option>
+                              </select>
+                            </div>
+                          )}
+                        </>
+                      )}
 
                       {error && (
                         <div className="rounded-md bg-red-50 p-4">

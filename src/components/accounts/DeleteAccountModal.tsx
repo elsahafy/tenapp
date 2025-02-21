@@ -1,10 +1,9 @@
 'use client'
 
-import { Fragment, useState } from 'react'
+import type { Database } from '@/types/supabase'
 import { Dialog, Transition } from '@headlessui/react'
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
-import { supabase } from '@/lib/supabase'
-import type { Database } from '@/types/supabase'
+import { Fragment, useState } from 'react'
 
 type Account = Database['public']['Tables']['accounts']['Row']
 

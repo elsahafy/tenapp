@@ -22,7 +22,7 @@ export function formatCurrency(amount: number, currency: Currency): string {
     currency: currency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-    currencyDisplay: 'narrowSymbol'
+    currencyDisplay: 'code'
   }
 
   // Special handling for currencies with 3 decimal places

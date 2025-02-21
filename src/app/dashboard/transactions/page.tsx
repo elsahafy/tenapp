@@ -5,21 +5,27 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { useAccounts } from '@/lib/hooks/useAccounts'
 import { useTransactions } from '@/lib/hooks/useTransactions'
-import { TransactionModal } from '@/components/transactions/TransactionModal'
+import { useRecurringTransactions } from '@/lib/hooks/useRecurringTransactions'
+import { AddTransactionModal } from '@/components/transactions/AddTransactionModal'
 import { TransactionList } from '@/components/transactions/TransactionList'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Amount } from '@/components/ui/amount'
+import type { Database } from '@/types/supabase'
 import {
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon,
   ScaleIcon,
 } from '@heroicons/react/24/outline'
 
+type Tables = Database['public']['Tables']
+type Account = Tables['accounts']['Row']
+
 export default function TransactionsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const { accounts, loading: accountsLoading, refetch: refetchAccounts } = useAccounts()
-  const { transactions, stats, isLoading: transactionsLoading, refetch: refetchTransactions } = useTransactions()
+  const { transactions, categories, stats, isLoading: transactionsLoading, refetch: refetchTransactions } = useTransactions()
+  const { recurringTransactions, isLoading: recurringLoading } = useRecurringTransactions()
 
   const handleSaveTransaction = async () => {
     await Promise.all([refetchAccounts(), refetchTransactions()])
@@ -112,15 +118,20 @@ export default function TransactionsPage() {
 
             <TransactionList 
               transactions={transactions || []} 
-              accounts={accounts} 
-              isLoading={transactionsLoading} 
+              accounts={accounts || []}
+              categories={categories || []}
+              recurringTransactions={recurringTransactions?.map(rt => ({
+                ...rt,
+                next_occurrence: rt.next_occurrence || new Date().toISOString()
+              })) || []}
+              isLoading={transactionsLoading || recurringLoading} 
             />
 
-            <TransactionModal
-              isOpen={isModalOpen}
+            <AddTransactionModal
+              open={isModalOpen}
               accounts={accounts}
               onClose={() => setIsModalOpen(false)}
-              onSave={handleSaveTransaction}
+              onSuccess={handleSaveTransaction}
             />
           </>
         )}

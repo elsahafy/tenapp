@@ -1,108 +1,210 @@
-import { useState } from 'react'
+import { useCurrency } from '@/lib/hooks/useCurrency'
 import type { Database } from '@/lib/types/database'
+import { formatCurrency } from '@/lib/utils/formatters'
+import { ArrowPathIcon } from '@heroicons/react/24/outline'
+import { useState } from 'react'
 
 type Tables = Database['public']['Tables']
-type Account = Tables['accounts']['Row']
-
-interface DebtPayoffCalculatorProps {
-  payoffPlan: {
-    totalMonths: number
-    monthlyPayment: number
-    accountPayoffs: {
-      account: Account
-      monthsToPayoff: number
-      monthlyPayment: number
-      totalInterest: number
-    }[]
-  }
-  totalDebt: number
+type Account = Tables['accounts']['Row'] & {
+  collateral: string | null
+  emi_enabled: boolean
+  loan_end_date: string | null
+  loan_purpose: string | null
+  loan_start_date: string | null
+  loan_term: number | null
+  monthly_installment: number | null
+  total_loan_amount: number | null
+  min_payment_amount: number | null
+  min_payment_percentage: number | null
 }
 
-export function DebtPayoffCalculator({ payoffPlan, totalDebt }: DebtPayoffCalculatorProps) {
-  const [customPayment, setCustomPayment] = useState(payoffPlan.monthlyPayment.toString())
+type PayoffPlan = {
+  monthlyPayment: number
+  minimumPayment: number
+  totalMonths: number
+  totalInterestPaid: number
+  accountPayoffs: {
+    account: Account
+    monthlyPayment: number
+    minimumPayment: number
+    monthsToPayoff: number
+    totalInterest: number
+  }[]
+}
+
+interface DebtPayoffCalculatorProps {
+  payoffPlan: PayoffPlan
+  totalDebt: number
+  onPaymentChange: (payment: number) => void
+}
+
+export function DebtPayoffCalculator({ payoffPlan, totalDebt, onPaymentChange }: DebtPayoffCalculatorProps) {
+  const { currency } = useCurrency()
+  const [customPayment, setCustomPayment] = useState(payoffPlan.monthlyPayment)
+  const [error, setError] = useState('')
+  const [isDirty, setIsDirty] = useState(false)
+
+  // Validate that custom payment meets minimum requirements
+  const validateCustomPayment = (amount: number) => {
+    const totalMinPayment = payoffPlan.accountPayoffs.reduce((acc, { minimumPayment }) => acc + minimumPayment, 0)
+    if (amount < totalMinPayment) {
+      setError(`Payment must be at least ${formatCurrency(totalMinPayment, currency)} to cover minimum payments`)
+      return false
+    }
+    setError('')
+    return true
+  }
+
+  // Handle custom payment change
+  const handleCustomPaymentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value)
+    if (!isNaN(value) && value > 0) {
+      setCustomPayment(value)
+      setIsDirty(true)
+      validateCustomPayment(value)
+    }
+  }
+
+  // Handle recalculate
+  const handleRecalculate = () => {
+    if (validateCustomPayment(customPayment)) {
+      onPaymentChange(customPayment)
+      setIsDirty(false)
+    }
+  }
+
+  // Reset to account minimum payments
+  const handleReset = () => {
+    const totalMinPayment = payoffPlan.accountPayoffs.reduce((acc, { minimumPayment }) => acc + minimumPayment, 0)
+    setCustomPayment(totalMinPayment)
+    onPaymentChange(totalMinPayment)
+    setError('')
+    setIsDirty(false)
+  }
 
   return (
-    <div className="bg-white shadow sm:rounded-lg">
-      <div className="px-4 py-5 sm:px-6">
-        <h3 className="text-lg font-medium leading-6 text-gray-900">Debt Payoff Strategy</h3>
-        <p className="mt-1 max-w-2xl text-sm text-gray-500">
-          Calculate how quickly you can become debt-free
-        </p>
-      </div>
-      <div className="border-t border-gray-200 px-4 py-5 sm:p-6">
-        <div className="space-y-6">
-          <div>
-            <label htmlFor="monthly-payment" className="block text-sm font-medium text-gray-700">
-              Monthly Payment
-            </label>
-            <div className="mt-2 flex rounded-md shadow-sm">
-              <span className="inline-flex items-center rounded-l-md border border-r-0 border-gray-300 bg-gray-50 px-3 text-gray-500 sm:text-sm">
-                $
-              </span>
-              <input
-                type="number"
-                name="monthly-payment"
-                id="monthly-payment"
-                className="block w-full min-w-0 flex-1 rounded-none rounded-r-md border-gray-300 focus:border-purple-500 focus:ring-purple-500 sm:text-sm"
-                value={customPayment}
-                onChange={(e) => setCustomPayment(e.target.value)}
-              />
+    <div className="bg-white shadow rounded-lg p-6">
+      <h2 className="text-lg font-semibold text-gray-900 mb-4">Debt Payoff Calculator</h2>
+
+      <div className="space-y-6">
+        <div>
+          <label htmlFor="monthly-payment" className="block text-sm font-medium text-gray-700">
+            Monthly Payment
+          </label>
+          <div className="mt-1 relative rounded-md shadow-sm">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <span className="text-gray-500 sm:text-sm">{currency}</span>
+            </div>
+            <input
+              type="number"
+              name="monthly-payment"
+              id="monthly-payment"
+              className={`block w-full pl-12 pr-24 sm:text-sm rounded-md ${
+                error ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-primary-500 focus:border-primary-500'
+              }`}
+              value={customPayment}
+              onChange={handleCustomPaymentChange}
+              min={payoffPlan.accountPayoffs.reduce((acc, { minimumPayment }) => acc + minimumPayment, 0)}
+              step="0.01"
+            />
+            <div className="absolute inset-y-0 right-0 pr-3 flex items-center space-x-2">
+              {isDirty && (
+                <button
+                  type="button"
+                  onClick={handleRecalculate}
+                  className="text-primary-600 hover:text-primary-700 focus:outline-none focus:text-primary-700"
+                  title="Recalculate with new payment"
+                >
+                  <ArrowPathIcon className="h-5 w-5" aria-hidden="true" />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleReset}
+                className="text-gray-400 hover:text-gray-500 focus:outline-none focus:text-gray-500"
+                title="Reset to account minimum payments"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+                </svg>
+              </button>
             </div>
           </div>
+          {error && (
+            <p className="mt-2 text-sm text-red-600">{error}</p>
+          )}
+          <p className="mt-2 text-sm text-gray-500">
+            Minimum required: {formatCurrency(payoffPlan.accountPayoffs.reduce((acc, { minimumPayment }) => acc + minimumPayment, 0), currency)}
+          </p>
+          {isDirty && (
+            <p className="mt-2 text-sm text-primary-600">
+              Click the recalculate button to update the payment plan
+            </p>
+          )}
+        </div>
 
-          <div className="rounded-md bg-purple-50 p-4">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-purple-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-purple-800">Payment Strategy</h3>
-                <div className="mt-2 text-sm text-purple-700">
-                  <p>
-                    With a monthly payment of ${Number(customPayment).toLocaleString()}, you can be debt-free in{' '}
-                    {Math.ceil(totalDebt / Number(customPayment))} months.
-                  </p>
+        <div className="border-t border-gray-200 pt-4">
+          <h3 className="text-sm font-medium text-gray-900 mb-3">Payment Breakdown</h3>
+          <div className="space-y-4">
+            {payoffPlan.accountPayoffs.map(({ account, monthlyPayment, minimumPayment, monthsToPayoff, totalInterest }) => (
+              <div key={account.id} className="bg-gray-50 rounded p-3">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900">{account.name}</h4>
+                    <p className="text-sm text-gray-500">
+                      Balance: {formatCurrency(account.current_balance, currency)}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Minimum payment: {formatCurrency(minimumPayment, currency)}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-gray-900">
+                      {formatCurrency(monthlyPayment, currency)}/mo
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {monthsToPayoff === 1 ? '1 month' : monthsToPayoff > 0 ? `${monthsToPayoff} months` : 'N/A'}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Interest: {formatCurrency(totalInterest, currency)}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <div className="h-2 bg-gray-200 rounded-full">
+                    <div
+                      className="h-2 bg-primary-500 rounded-full"
+                      style={{
+                        width: `${(monthlyPayment / customPayment) * 100}%`,
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            ))}
           </div>
+        </div>
 
-          <div className="flow-root">
-            <ul role="list" className="-mb-8">
-              {payoffPlan.accountPayoffs.map((payoff, idx) => (
-                <li key={payoff.account.id}>
-                  <div className="relative pb-8">
-                    {idx < payoffPlan.accountPayoffs.length - 1 ? (
-                      <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true" />
-                    ) : null}
-                    <div className="relative flex space-x-3">
-                      <div>
-                        <span className="h-8 w-8 rounded-full bg-purple-500 flex items-center justify-center ring-8 ring-white">
-                          <span className="text-sm text-white font-medium">{idx + 1}</span>
-                        </span>
-                      </div>
-                      <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
-                        <div>
-                          <p className="text-sm text-gray-900">
-                            {payoff.account.name}
-                            <span className="ml-2 text-sm text-gray-500">
-                              (${payoff.account.current_balance.toLocaleString()})
-                            </span>
-                          </p>
-                        </div>
-                        <div className="whitespace-nowrap text-right text-sm text-gray-500">
-                          <p>{payoff.monthsToPayoff} months</p>
-                          <p className="text-purple-600">${payoff.monthlyPayment.toLocaleString()}/mo</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
+        <div className="border-t border-gray-200 pt-4">
+          <dl className="space-y-2">
+            <div className="flex justify-between">
+              <dt className="text-sm text-gray-500">Total Debt</dt>
+              <dd className="text-sm font-medium text-gray-900">{formatCurrency(totalDebt, currency)}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-sm text-gray-500">Total Interest</dt>
+              <dd className="text-sm font-medium text-gray-900">{formatCurrency(payoffPlan.totalInterestPaid, currency)}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-sm text-gray-500">Time to Debt Free</dt>
+              <dd className="text-sm font-medium text-gray-900">
+                {payoffPlan.totalMonths > 0
+                  ? `${Math.floor(payoffPlan.totalMonths / 12)} years, ${payoffPlan.totalMonths % 12} months`
+                  : 'N/A'
+                }
+              </dd>
+            </div>
+          </dl>
         </div>
       </div>
     </div>
