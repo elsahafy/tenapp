@@ -195,6 +195,94 @@ Fix TypeScript errors in the analytics page related to transaction type mismatch
 - Add fallback UI for null/undefined values
 - Consider the complete type mapping when converting between types
 
+# Current Task: Account Balance Display Improvements
+
+## Objective
+Fix inconsistent currency formatting and balance calculations in the dashboard, particularly for debt accounts (loans and credit cards). Add helpful currency conversion information and balance trends.
+
+## Progress
+[X] Fix inconsistent currency prefix placement
+[X] Fix double-negative representation of loan balances
+[X] Fix inconsistent spacing between currency code and amount
+[X] Improve handling of negative amounts for debt accounts
+[X] Simplify balance calculation logic
+[X] Make currency formatting consistent
+[X] Add exchange rate display in tooltips
+[X] Add currency conversion info to total balance
+[X] Add helper functions for exchange rate formatting
+[X] Add balance trends with sparkline charts
+[X] Create balance_history table
+[X] Add fallback trend data when history is missing
+
+## Technical Details
+- Use formatCurrencyWithCode for consistent currency display
+- Use -Math.abs() to ensure proper negative values for debt accounts
+- Removed redundant balance negation in total calculation
+- Handle both preferred and original currency display consistently
+- Apply consistent text color for debt accounts (text-red-600)
+- Added getExchangeRate and formatExchangeRate helper functions
+- Added tooltips showing exchange rates and original amounts
+- Created reusable Sparkline component for balance trends
+- Added balance_history table with RLS policies
+- Implemented balance trend visualization
+
+## Lessons Learned
+1. Currency Formatting:
+   - Let the currency formatter handle negative signs
+   - Don't manually concatenate currency symbols
+   - Use consistent spacing between currency code and amount
+   - Handle both preferred and original currency display the same way
+   - Show exchange rates to help users understand conversions
+
+2. Balance Calculations:
+   - Debt account balances should already be negative in the database
+   - Don't double-negate balances in calculations
+   - Use Math.abs() to ensure proper sign handling
+   - Keep calculations simple and consistent
+   - Consider exchange rates in total calculations
+
+3. Code Organization:
+   - Group related currency formatting logic
+   - Apply consistent styling patterns
+   - Use helper functions for common operations
+   - Keep display logic separate from calculations
+   - Create reusable currency utilities
+   - Create reusable UI components
+
+4. User Experience:
+   - Show exchange rates in tooltips
+   - Make converted amounts clear
+   - Add hover states for more information
+   - Use consistent cursor styles for interactive elements
+   - Provide context for currency conversions
+   - Show balance trends for better insights
+
+5. Database Design:
+   - Use proper data types for financial data (numeric(19,4))
+   - Add appropriate foreign key constraints
+   - Implement RLS policies for security
+   - Include audit fields (created_at, updated_at)
+   - Add proper indexes for performance
+
+## Next Steps
+[X] Add currency conversion rate display
+[X] Add tooltips for currency conversion
+[X] Add balance trends
+[ ] Add account grouping by type
+[ ] Consider adding currency preferences to account settings
+[ ] Add visual indicators for exchange rate changes
+[ ] Add date range selection for trends
+[ ] Add trend analysis insights
+
+## Notes
+- Keep currency formatting consistent across all components
+- Ensure proper sign handling for all account types
+- Use consistent color coding for debt amounts
+- Follow the same patterns in other financial displays
+- Make currency conversion transparent to users
+- Consider performance with large history datasets
+- Add proper error handling for missing data
+
 # Current Task: Account Card Layout Optimization
 
 ## Objective

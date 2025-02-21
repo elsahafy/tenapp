@@ -58,6 +58,23 @@ export function convertCurrency(
   return Math.round(convertedAmount * 100) / 100
 }
 
+export function getExchangeRate(fromCurrency: CurrencyCode, toCurrency: CurrencyCode): number {
+  if (fromCurrency === toCurrency) return 1
+  
+  const rate = currentRates[fromCurrency] / currentRates[toCurrency]
+  if (!rate) {
+    console.warn(`Exchange rate not found for ${fromCurrency} to ${toCurrency}`)
+    return 1
+  }
+  
+  return rate
+}
+
+export function formatExchangeRate(fromCurrency: CurrencyCode, toCurrency: CurrencyCode): string {
+  const rate = getExchangeRate(fromCurrency, toCurrency)
+  return `1 ${fromCurrency} = ${rate.toFixed(4)} ${toCurrency}`
+}
+
 export function formatCurrencyWithCode(amount: number, currency: CurrencyCode): string {
   const formatter = new Intl.NumberFormat('en-US', {
     style: 'currency',
