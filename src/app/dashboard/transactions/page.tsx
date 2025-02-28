@@ -3,10 +3,10 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
+import { useUser } from '@/lib/hooks/useUser'
 import { useAccounts } from '@/lib/hooks/useAccounts'
 import { useTransactions } from '@/lib/hooks/useTransactions'
 import { useRecurringTransactions } from '@/lib/hooks/useRecurringTransactions'
-import { AddTransactionModal } from '@/components/transactions/AddTransactionModal'
 import { TransactionList } from '@/components/transactions/TransactionList'
 import DashboardLayout from '@/components/layout/DashboardLayout'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
@@ -26,6 +26,7 @@ export default function TransactionsPage() {
   const { accounts, loading: accountsLoading, refetch: refetchAccounts } = useAccounts()
   const { transactions, categories, stats, isLoading: transactionsLoading, refetch: refetchTransactions } = useTransactions()
   const { recurringTransactions, isLoading: recurringLoading } = useRecurringTransactions()
+  const { user } = useUser() // Assuming you have a useUser hook
 
   const handleSaveTransaction = async () => {
     await Promise.all([refetchAccounts(), refetchTransactions()])
@@ -116,7 +117,7 @@ export default function TransactionsPage() {
               </Card>
             </div>
 
-            <TransactionList 
+            <TransactionList
               transactions={transactions || []} 
               accounts={accounts || []}
               categories={categories || []}
@@ -125,13 +126,8 @@ export default function TransactionsPage() {
                 next_occurrence: rt.next_occurrence || new Date().toISOString()
               })) || []}
               isLoading={transactionsLoading || recurringLoading} 
-            />
-
-            <AddTransactionModal
-              open={isModalOpen}
-              accounts={accounts}
-              onClose={() => setIsModalOpen(false)}
-              onSuccess={handleSaveTransaction}
+              refetchTransactions={refetchTransactions}
+              user={user}
             />
           </>
         )}

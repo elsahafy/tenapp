@@ -1,183 +1,135 @@
-import { Fragment, useState, useEffect } from 'react'
-import { Dialog, Transition, Listbox } from '@headlessui/react'
-import { XMarkIcon, CheckIcon } from '@heroicons/react/24/outline'
-import { useUser } from '@/lib/hooks/useUser'
-import { Database } from '@/lib/types/database'
-import {
-  RecurringTransaction,
-  RecurringFrequency,
-  createRecurringTransaction,
-  updateRecurringTransaction,
-} from '@/lib/services/recurringTransactionService'
+import { Button } from '@/components/ui/Button'
+import { DatePicker } from '@/components/ui/DatePicker'
+import { FormField } from '@/components/ui/FormField'
+import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
 import { supabase } from '@/lib/supabase'
+import type { Database } from '@/types/supabase'
+import { Dialog, Transition } from '@headlessui/react'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Fragment, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+
+type Tables = Database['public']['Tables']
+type Account = Tables['accounts']['Row']
+type Category = Tables['categories']['Row']
+
+const schema = z.object({
+  description: z.string().min(1, 'Description is required'),
+  amount: z.number().min(0.01, 'Amount must be greater than 0'),
+  type: z.enum(['income', 'expense', 'transfer'] as const),
+  account_id: z.string().min(1, 'Account is required'),
+  transfer_account_id: z.string().optional(),
+  category_id: z.string().optional(),
+  frequency: z.enum(['daily', 'weekly', 'monthly', 'quarterly', 'yearly'] as const),
+  start_date: z.date(),
+  end_date: z.date().optional().nullable(),
+  day_of_month: z.number().min(1).max(31).optional(),
+  day_of_week: z.number().min(0).max(6).optional(),
+  week_of_month: z.number().min(1).max(5).optional()
+})
+
+type FormData = z.infer<typeof schema>
 
 interface Props {
   open: boolean
   onClose: () => void
   onSuccess: () => void
-  transaction?: RecurringTransaction
+  accounts: Account[]
+  categories: Category[]
+  refetchTransactions: () => void
 }
 
-interface FormData {
-  id?: string
-  description: string
-  amount: number
-  type: 'deposit' | 'withdrawal'
-  category_id: string | null
-  account_id: string | null
-  frequency: string
-  day_of_week: number | null
-  day_of_month: number | null
-  start_date: string
-  end_date: string | null
-  active: boolean
-  created_at?: string
-  updated_at?: string
-}
-
-const frequencyOptions = [
-  { value: 'daily', label: 'Daily' },
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'monthly', label: 'Monthly' },
-  { value: 'yearly', label: 'Yearly' }
-] as const
-
-const defaultFormData: FormData = {
-  id: undefined,
-  description: '',
-  amount: 0,
-  type: 'withdrawal',
-  category_id: null,
-  account_id: null,
-  frequency: 'monthly',
-  day_of_week: null,
-  day_of_month: null,
-  start_date: new Date().toISOString().split('T')[0],
-  end_date: null,
-  active: true,
-  created_at: undefined,
-  updated_at: undefined
-}
-
-export default function RecurringTransactionModal({
+export function RecurringTransactionModal({
   open,
   onClose,
   onSuccess,
-  transaction,
+  accounts,
+  categories,
+  refetchTransactions,
 }: Props) {
-  const { user } = useUser()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [categories, setCategories] = useState<any[]>([])
-  const [accounts, setAccounts] = useState<any[]>([])
-  const [formData, setFormData] = useState<FormData>(defaultFormData)
 
-  useEffect(() => {
-    if (transaction) {
-      setFormData({
-        id: transaction.id,
-        description: transaction.description || '',
-        amount: transaction.amount,
-        type: transaction.type === 'transfer' ? 'withdrawal' : transaction.type,
-        category_id: transaction.category_id,
-        account_id: transaction.account_id,
-        frequency: transaction.frequency,
-        day_of_week: transaction.day_of_week || null,
-        day_of_month: transaction.day_of_month || null,
-        start_date: transaction.start_date,
-        end_date: transaction.end_date || null,
-        active: transaction.active ?? true,
-        created_at: transaction.created_at,
-        updated_at: transaction.updated_at
-      })
-    } else {
-      setFormData(defaultFormData)
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors }
+  } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      type: 'income',
+      start_date: new Date(),
+      frequency: 'monthly'
     }
-  }, [transaction])
+  })
 
-  useEffect(() => {
-    if (!user?.id) return
-
-    const fetchData = async () => {
-      try {
-        const [categoriesResponse, accountsResponse] = await Promise.all([
-          supabase
-            .from('categories')
-            .select('id, name, type')
-            .eq('user_id', user.id)
-            .order('name'),
-          supabase
-            .from('accounts')
-            .select('id, name')
-            .eq('user_id', user.id)
-            .order('name'),
-        ])
-
-        if (categoriesResponse.error) throw categoriesResponse.error
-        if (accountsResponse.error) throw accountsResponse.error
-
-        setCategories(categoriesResponse.data || [])
-        setAccounts(accountsResponse.data || [])
-      } catch (error) {
-        console.error('Error fetching form data:', error)
-        setError(error instanceof Error ? error.message : 'An error occurred')
-      }
-    }
-
-    fetchData()
-  }, [user?.id])
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
+  const onSubmit = async (data: FormData) => {
     try {
       setLoading(true)
       setError(null)
 
-      const payload = {
-        ...formData,
-        user_id: user?.id,
-        amount: Number(formData.amount),
-        day_of_month: formData.day_of_month || null,
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('User not authenticated')
+
+      console.log('Form data:', data)
+
+      const recurringData = {
+        description: data.description,
+        amount: data.amount,
+        type: data.type,
+        account_id: data.account_id,
+        category_id: data.category_id || null,
+        transfer_account_id: data.transfer_account_id || null,
+        user_id: user.id,
+        frequency: data.frequency,
+        start_date: data.start_date.toISOString(),
+        next_occurrence: data.start_date.toISOString(),
+        end_date: data.end_date?.toISOString() || null,
+        day_of_month: data.day_of_month || null,
+        day_of_week: data.day_of_week || null,
+        week_of_month: data.week_of_month || null,
+        active: true
       }
 
-      if (transaction) {
-        // Update existing
-        await supabase
-          .from('recurring_transactions')
-          .update(payload)
-          .eq('id', transaction.id)
-      } else {
-        // Create new
-        await supabase
-          .from('recurring_transactions')
-          .insert([payload])
+      console.log('Recurring transaction data:', recurringData)
+
+      const { data: result, error: insertError } = await supabase
+        .from('recurring_transactions')
+        .insert(recurringData)
+        .select()
+
+      if (insertError) {
+        console.error('Error inserting recurring transaction:', insertError)
+        throw insertError
       }
 
+      console.log('Recurring transaction created:', result)
+
+      await refetchTransactions()
       onSuccess()
       onClose()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
+    } catch (error) {
+      console.error('Error creating recurring transaction:', error)
+      setError(error instanceof Error ? error.message : 'An error occurred')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleDayOfMonthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value ? parseInt(e.target.value, 10) : null
-    setFormData(prev => ({
-      ...prev,
-      day_of_month: value
-    }))
-  }
+  const transactionType = watch('type')
+  const filteredCategories = categories.filter(c => c.type === transactionType)
 
-  const handleDayOfWeekChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value ? parseInt(e.target.value, 10) : null
-    setFormData(prev => ({
-      ...prev,
-      day_of_week: value
-    }))
-  }
+  const frequencies = [
+    { value: 'daily', label: 'Daily' },
+    { value: 'weekly', label: 'Weekly' },
+    { value: 'monthly', label: 'Monthly' },
+    { value: 'quarterly', label: 'Quarterly (every 3 months)' },
+    { value: 'yearly', label: 'Yearly' }
+  ]
 
   return (
     <Transition.Root show={open} as={Fragment}>
@@ -206,332 +158,110 @@ export default function RecurringTransactionModal({
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
               <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
-                <div className="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
-                  <button
-                    type="button"
-                    className="rounded-md bg-white text-gray-400 hover:text-gray-500"
-                    onClick={onClose}
-                  >
-                    <span className="sr-only">Close</span>
-                    <XMarkIcon className="h-6 w-6" aria-hidden="true" />
-                  </button>
-                </div>
-
-                <div className="sm:flex sm:items-start">
-                  <div className="mt-3 w-full text-center sm:mt-0 sm:text-left">
-                    <Dialog.Title
-                      as="h3"
-                      className="text-base font-semibold leading-6 text-gray-900"
-                    >
-                      {transaction
-                        ? 'Edit Recurring Transaction'
-                        : 'New Recurring Transaction'}
+                <div>
+                  <div className="mt-3 text-center sm:mt-5">
+                    <Dialog.Title as="h3" className="text-base font-semibold leading-6 text-gray-900">
+                      Add Recurring Transaction
                     </Dialog.Title>
-
-                    <form onSubmit={handleSubmit} className="mt-4">
+                    <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-6">
                       <div className="space-y-4">
-                        {/* Description */}
-                        <div>
-                          <label
-                            htmlFor="description"
-                            className="block text-sm font-medium text-gray-700"
-                          >
-                            Description
-                          </label>
-                          <input
-                            type="text"
-                            name="description"
-                            id="description"
-                            value={formData.description}
-                            onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                        <FormField label="Type" error={errors.type?.message}>
+                          <Select {...register('type')}>
+                            <option value="income">Income</option>
+                            <option value="expense">Expense</option>
+                            <option value="transfer">Transfer</option>
+                          </Select>
+                        </FormField>
+
+                        <FormField label="Description" error={errors.description?.message}>
+                          <Input {...register('description')} />
+                        </FormField>
+
+                        <FormField label="Amount" error={errors.amount?.message}>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            {...register('amount', { valueAsNumber: true })}
                           />
-                        </div>
+                        </FormField>
 
-                        {/* Amount and Type */}
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label
-                              htmlFor="amount"
-                              className="block text-sm font-medium text-gray-700"
-                            >
-                              Amount
-                            </label>
-                            <input
-                              type="number"
-                              id="amount"
-                              step="0.01"
-                              min="0"
-                              required
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                              value={formData.amount}
-                              onChange={(e) =>
-                                setFormData(prev => ({
-                                  ...prev,
-                                  amount: e.target.value === '' ? 0 : Number(e.target.value),
-                                }))
-                              }
-                            />
-                          </div>
-                          <div>
-                            <label
-                              htmlFor="type"
-                              className="block text-sm font-medium text-gray-700"
-                            >
-                              Type
-                            </label>
-                            <select
-                              id="type"
-                              name="type"
-                              value={formData.type}
-                              onChange={(e) => setFormData({ ...formData, type: e.target.value as 'deposit' | 'withdrawal' })}
-                              className="mt-1 block w-full rounded-md border-gray-300 py-2 pl-3 pr-10 text-base focus:border-primary-500 focus:outline-none focus:ring-primary-500 sm:text-sm"
-                            >
-                              <option value="withdrawal">Expense</option>
-                              <option value="deposit">Income</option>
-                            </select>
-                          </div>
-                        </div>
+                        <FormField label="Account" error={errors.account_id?.message}>
+                          <Select {...register('account_id')}>
+                            <option value="">Select account</option>
+                            {accounts.map(account => (
+                              <option key={account.id} value={account.id}>
+                                {account.name}
+                              </option>
+                            ))}
+                          </Select>
+                        </FormField>
 
-                        {/* Category and Account */}
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label
-                              htmlFor="category"
-                              className="block text-sm font-medium text-gray-700"
-                            >
-                              Category
-                            </label>
-                            <select
-                              id="category"
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                              value={formData.category_id || ''}
-                              onChange={(e) =>
-                                setFormData(prev => ({
-                                  ...prev,
-                                  category_id: e.target.value || null,
-                                }))
-                              }
-                            >
-                              <option value="">Select category</option>
-                              {categories
-                                .filter(
-                                  (cat) =>
-                                    cat.type === formData.type ||
-                                    cat.type === 'both'
-                                )
-                                .map((category) => (
-                                  <option key={category.id} value={category.id}>
-                                    {category.name}
-                                  </option>
-                                ))}
-                            </select>
-                          </div>
-                          <div>
-                            <label
-                              htmlFor="account"
-                              className="block text-sm font-medium text-gray-700"
-                            >
-                              Account
-                            </label>
-                            <select
-                              id="account"
-                              required
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                              value={formData.account_id || ''}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  account_id: e.target.value || null,
-                                })
-                              }
-                            >
+                        {transactionType === 'transfer' && (
+                          <FormField label="Transfer To" error={errors.transfer_account_id?.message}>
+                            <Select {...register('transfer_account_id')}>
                               <option value="">Select account</option>
-                              {accounts.map((account) => (
+                              {accounts.map(account => (
                                 <option key={account.id} value={account.id}>
                                   {account.name}
                                 </option>
                               ))}
-                            </select>
-                          </div>
-                        </div>
+                            </Select>
+                          </FormField>
+                        )}
 
-                        {/* Frequency */}
-                        <div>
-                          <label
-                            htmlFor="frequency"
-                            className="block text-sm font-medium text-gray-700"
-                          >
-                            Frequency
-                          </label>
-                          <select
-                            id="frequency"
-                            value={formData.frequency}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                frequency: e.target.value,
-                                // Reset related fields when frequency changes
-                                day_of_week: null,
-                                day_of_month: null,
-                              })
-                            }
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                          >
-                            {frequencyOptions.map((option) => (
-                              <option key={option.value} value={option.value}>
-                                {option.label}
+                        {transactionType !== 'transfer' && (
+                          <FormField label="Category" error={errors.category_id?.message}>
+                            <Select {...register('category_id')}>
+                              <option value="">Select category</option>
+                              {filteredCategories.map(category => (
+                                <option key={category.id} value={category.id}>
+                                  {category.name}
+                                </option>
+                              ))}
+                            </Select>
+                          </FormField>
+                        )}
+
+                        <FormField label="Frequency" error={errors.frequency?.message}>
+                          <Select {...register('frequency')}>
+                            {frequencies.map(freq => (
+                              <option key={freq.value} value={freq.value}>
+                                {freq.label}
                               </option>
                             ))}
-                          </select>
-                        </div>
+                          </Select>
+                        </FormField>
 
-                        {/* Day of Month */}
-                        {formData.frequency === 'monthly' && (
-                          <div>
-                            <label
-                              htmlFor="dayOfMonth"
-                              className="block text-sm font-medium text-gray-700"
-                            >
-                              Day of Month
-                            </label>
-                            <input
-                              type="number"
-                              id="dayOfMonth"
-                              min="1"
-                              max="31"
-                              value={formData.day_of_month || ''}
-                              onChange={handleDayOfMonthChange}
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                            />
-                          </div>
-                        )}
-
-                        {/* Day of Week */}
-                        {formData.frequency === 'weekly' && (
-                          <div>
-                            <label
-                              htmlFor="dayOfWeek"
-                              className="block text-sm font-medium text-gray-700"
-                            >
-                              Day of Week
-                            </label>
-                            <select
-                              id="dayOfWeek"
-                              value={formData.day_of_week?.toString() || ''}
-                              onChange={handleDayOfWeekChange}
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                            >
-                              <option value="">Select day</option>
-                              <option value="0">Sunday</option>
-                              <option value="1">Monday</option>
-                              <option value="2">Tuesday</option>
-                              <option value="3">Wednesday</option>
-                              <option value="4">Thursday</option>
-                              <option value="5">Friday</option>
-                              <option value="6">Saturday</option>
-                            </select>
-                          </div>
-                        )}
-
-                        {/* Dates */}
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label
-                              htmlFor="start_date"
-                              className="block text-sm font-medium text-gray-700"
-                            >
-                              Start Date
-                            </label>
-                            <input
-                              type="date"
-                              id="start_date"
-                              value={formData.start_date}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  start_date: e.target.value,
-                                })
-                              }
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                            />
-                          </div>
-
-                          <div>
-                            <label
-                              htmlFor="end_date"
-                              className="block text-sm font-medium text-gray-700"
-                            >
-                              End Date (Optional)
-                            </label>
-                            <input
-                              type="date"
-                              id="end_date"
-                              value={formData.end_date || ''}
-                              onChange={(e) =>
-                                setFormData({
-                                  ...formData,
-                                  end_date: e.target.value || null,
-                                })
-                              }
-                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Active Status */}
-                        <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            id="active"
-                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                            checked={formData.active}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                active: e.target.checked,
-                              })
-                            }
+                        <FormField label="Start Date" error={errors.start_date?.message}>
+                          <DatePicker
+                            onChange={(date: Date | null) => setValue('start_date', date || new Date())}
+                            selected={watch('start_date')}
+                            placeholderText="Select start date"
                           />
-                          <label
-                            htmlFor="active"
-                            className="ml-2 block text-sm text-gray-900"
-                          >
-                            Active
-                          </label>
-                        </div>
+                        </FormField>
 
-                        {error && (
-                          <div className="rounded-md bg-red-50 p-4">
-                            <div className="flex">
-                              <div className="ml-3">
-                                <h3 className="text-sm font-medium text-red-800">
-                                  Error
-                                </h3>
-                                <div className="mt-2 text-sm text-red-700">
-                                  {error}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
+                        <FormField label="End Date (Optional)" error={errors.end_date?.message}>
+                          <DatePicker
+                            onChange={(date: Date | null) => setValue('end_date', date)}
+                            selected={watch('end_date')}
+                            placeholderText="Optional end date"
+                          />
+                        </FormField>
                       </div>
 
-                      <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-                        <button
-                          type="submit"
-                          disabled={loading}
-                          className="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 sm:ml-3 sm:w-auto"
-                        >
-                          {loading ? 'Saving...' : 'Save'}
-                        </button>
-                        <button
-                          type="button"
-                          className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
-                          onClick={onClose}
-                        >
+                      {error && (
+                        <div className="mt-4 text-sm text-red-600">
+                          {error}
+                        </div>
+                      )}
+
+                      <div className="mt-6 flex justify-end gap-3">
+                        <Button type="button" variant="outline" onClick={onClose}>
                           Cancel
-                        </button>
+                        </Button>
+                        <Button type="submit" loading={loading}>
+                          Create
+                        </Button>
                       </div>
                     </form>
                   </div>

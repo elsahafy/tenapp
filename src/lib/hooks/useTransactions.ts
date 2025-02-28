@@ -43,7 +43,11 @@ export function useTransactions() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('User not authenticated')
 
-      // Fetch transactions
+      // Get current date at start of day
+      const now = new Date()
+      now.setHours(0, 0, 0, 0)
+
+      // Fetch transactions including future ones
       const { data: transactionData, error: transactionError } = await supabase
         .from('transactions')
         .select('*')
@@ -51,6 +55,37 @@ export function useTransactions() {
         .order('date', { ascending: false })
 
       if (transactionError) throw transactionError
+
+      // Fetch recurring transactions and generate future occurrences
+      const { data: recurringData, error: recurringError } = await supabase
+        .from('recurring_transactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('active', true)
+        .gte('next_occurrence', now.toISOString())
+        .order('next_occurrence', { ascending: true })
+
+      if (recurringError) throw recurringError
+
+      // Combine regular and future recurring transactions
+      const allTransactions = [
+        ...(transactionData || []),
+        ...(recurringData || []).map(rt => ({
+          id: `future_${rt.id}_${rt.next_occurrence}`,
+          date: rt.next_occurrence,
+          description: `${rt.description} (Recurring)`,
+          amount: rt.amount,
+          type: rt.type,
+          account_id: rt.account_id,
+          category_id: rt.category_id,
+          user_id: rt.user_id,
+          created_at: rt.created_at,
+          updated_at: rt.updated_at,
+          is_future: true
+        }))
+      ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+      setTransactions(allTransactions)
 
       // Fetch categories
       const { data: categoryData, error: categoryError } = await supabase
@@ -60,23 +95,22 @@ export function useTransactions() {
 
       if (categoryError) throw categoryError
 
-      setTransactions(transactionData || [])
       setCategories(categoryData || [])
 
       // Calculate statistics
-      if (transactionData) {
-        const income = transactionData
+      if (allTransactions) {
+        const income = allTransactions
           .filter(t => t.type === 'income')
           .reduce((sum, t) => sum + t.amount, 0)
 
-        const expenses = transactionData
+        const expenses = allTransactions
           .filter(t => t.type === 'expense')
           .reduce((sum, t) => sum + Math.abs(t.amount), 0)
 
         const breakdown: Record<string, number> = {}
         const categoryTransactions: Record<string, Transaction[]> = {}
         
-        transactionData.forEach(t => {
+        allTransactions.forEach(t => {
           if (t.category_id) {
             const category = categoryData?.find(c => c.id === t.category_id)
             if (category) {

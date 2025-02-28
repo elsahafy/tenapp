@@ -160,15 +160,29 @@ export function AccountSummary() {
           <div className="sm:flex sm:items-center sm:justify-between">
             <h3 className="text-lg font-semibold leading-6 text-gray-900">Account Summary</h3>
             <div className="mt-4 sm:mt-0">
-              <p className="text-sm text-gray-600">
+              <div className="text-sm text-gray-600 flex items-center gap-1">
                 Total Balance:{' '}
-                <span className={cn(
-                  "text-lg font-semibold",
-                  totalBalance < 0 ? 'text-red-600' : 'text-emerald-600'
-                )}>
-                  {formatCurrencyWithCode(totalBalance, preferences.preferredCurrency)}
-                </span>
-              </p>
+                <Tooltip content={
+                  accounts.some(a => a.currency !== preferences.preferredCurrency)
+                    ? `Converted from: ${accounts
+                        .filter(a => a.currency !== preferences.preferredCurrency)
+                        .map(a => `${formatCurrencyWithCode(
+                          (a.type === 'credit_card' || a.type === 'loan')
+                            ? -Math.abs(Number(a.current_balance))
+                            : Number(a.current_balance),
+                          a.currency
+                        )}`)
+                        .join(', ')}`
+                    : 'All accounts are in your preferred currency'
+                }>
+                  <span className={cn(
+                    "text-lg font-semibold cursor-help",
+                    totalBalance < 0 ? 'text-red-600' : 'text-emerald-600'
+                  )}>
+                    {formatCurrencyWithCode(totalBalance, preferences.preferredCurrency)}
+                  </span>
+                </Tooltip>
+              </div>
             </div>
           </div>
 
@@ -198,7 +212,7 @@ export function AccountSummary() {
         <div className="sm:flex sm:items-center sm:justify-between">
           <h3 className="text-lg font-semibold leading-6 text-gray-900">Account Summary</h3>
           <div className="mt-4 sm:mt-0">
-            <p className="text-sm text-gray-600">
+            <div className="text-sm text-gray-600 flex items-center gap-1">
               Total Balance:{' '}
               <Tooltip content={
                 accounts.some(a => a.currency !== preferences.preferredCurrency)
@@ -220,7 +234,7 @@ export function AccountSummary() {
                   {formatCurrencyWithCode(totalBalance, preferences.preferredCurrency)}
                 </span>
               </Tooltip>
-            </p>
+            </div>
           </div>
         </div>
 

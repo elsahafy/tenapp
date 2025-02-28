@@ -1,13 +1,12 @@
 'use client'
 
-import { Fragment, useState, useEffect } from 'react'
-import { Dialog, Transition, Combobox } from '@headlessui/react'
-import * as HeroIcons from '@heroicons/react/24/outline'
-import { ChevronUpDownIcon } from '@heroicons/react/20/solid'
 import { supabase } from '@/lib/supabase'
-import { Account, Transaction } from '@/types'
-import { useForm, Controller } from 'react-hook-form'
+import { Account } from '@/types'
+import { Dialog, Transition } from '@headlessui/react'
+import * as HeroIcons from '@heroicons/react/24/outline'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Fragment, useEffect, useState } from 'react'
+import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
 interface Category {
@@ -24,6 +23,9 @@ interface AddTransactionModalProps {
   onSuccess: () => void
   accountId?: string
   accounts: Account[]
+  categories: Category[]
+  user: any
+  refetchTransactions: () => void
 }
 
 const schema = z.object({
@@ -33,13 +35,39 @@ const schema = z.object({
   account_id: z.string().min(1, 'Account is required'),
   transfer_account_id: z.string().optional(),
   category_id: z.string().optional(),
-  date: z.date(),
+  date: z.coerce.date(),
   is_recurring: z.boolean().default(false),
   frequency: z.enum(['daily', 'weekly', 'monthly', 'quarterly', 'yearly'] as const).optional(),
-  end_date: z.date().optional().nullable(),
+  end_date: z.string()
+    .nullable()
+    .optional()
+    .transform((val) => {
+      if (!val) return null;
+      const date = new Date(val);
+      return isNaN(date.getTime()) ? null : date;
+    }),
   day_of_month: z.number().min(1).max(31).optional(),
   day_of_week: z.number().min(0).max(6).optional(),
   week_of_month: z.number().min(1).max(5).optional()
+}).superRefine((data, ctx) => {
+  // Require end date for recurring transactions
+  if (data.is_recurring && !data.end_date) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "End date is required for recurring transactions",
+      path: ["end_date"]
+    });
+    return;
+  }
+
+  // Validate end date is after start date
+  if (data.is_recurring && data.end_date && data.end_date <= data.date) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "End date must be after the start date",
+      path: ["end_date"]
+    });
+  }
 })
 
 type FormData = z.infer<typeof schema>
@@ -47,10 +75,10 @@ type FormData = z.infer<typeof schema>
 // Group categories by their group (based on name)
 const groupCategories = (categories: Category[]) => {
   const groups: { [key: string]: Category[] } = {}
-  
+
   categories.forEach(category => {
     let group = 'Other'
-    
+
     if (category.type === 'income') {
       group = 'Income'
     } else {
@@ -77,18 +105,18 @@ const groupCategories = (categories: Category[]) => {
         group = 'Miscellaneous'
       }
     }
-    
+
     if (!groups[group]) {
       groups[group] = []
     }
     groups[group].push(category)
   })
-  
+
   // Sort categories within each group
   Object.keys(groups).forEach(group => {
     groups[group].sort((a, b) => a.name.localeCompare(b.name))
   })
-  
+
   return groups
 }
 
@@ -116,121 +144,137 @@ export function AddTransactionModal({
   onSuccess,
   accountId,
   accounts,
+  categories,
+  user,
+  refetchTransactions,
 }: AddTransactionModalProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [isRecurring, setIsRecurring] = useState(false)
-  const [categories, setCategories] = useState<Category[]>([])
   const [selectedType, setSelectedType] = useState<'income' | 'expense' | 'transfer'>('expense')
   const [query, setQuery] = useState('')
-  
-  const {
-    register,
-    handleSubmit,
-    watch,
-    control,
-    formState: { errors },
-    setValue,
-  } = useForm<FormData>({
+
+  const form = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      type: 'expense',
+      type: selectedType,
+      description: '',
+      amount: undefined,
+      account_id: accountId || '',
+      transfer_account_id: '',
+      category_id: '',
       date: new Date(),
       is_recurring: false,
-      account_id: accountId || '',
-    },
+      frequency: undefined,
+      end_date: null,
+      day_of_month: undefined,
+      day_of_week: undefined,
+      week_of_month: undefined
+    }
   })
 
-  // Fetch categories when type changes
+  const { register, handleSubmit, watch, setValue, reset, formState: { errors } } = form
+
+  // Reset form when modal is opened
   useEffect(() => {
-    if (open && selectedType) {
-      console.log('Fetching categories due to type change:', selectedType)
-      fetchCategories()
+    if (open) {
+      reset({
+        type: selectedType,
+        description: '',
+        amount: undefined,
+        account_id: accountId || '',
+        transfer_account_id: '',
+        category_id: '',
+        date: new Date(),
+        is_recurring: false,
+        frequency: undefined,
+        end_date: null,
+        day_of_month: undefined,
+        day_of_week: undefined,
+        week_of_month: undefined
+      })
     }
-  }, [selectedType, open])
+  }, [open, accountId, selectedType, reset])
 
-  const fetchCategories = async () => {
-    try {
-      console.log('Fetching categories for type:', selectedType)
-
-      const systemUserId = '00000000-0000-0000-0000-000000000000'
-
-      // Get all categories for the selected type
-      const { data: categories, error } = await supabase
-        .from('categories')
-        .select('*')
-        .eq('type', selectedType)
-        .eq('is_active', true)
-        .eq('user_id', systemUserId)
-        .order('name')
-
-      if (error) {
-        console.error('Error fetching categories:', error)
-        return
-      }
-
-      console.log('Categories found:', categories?.length || 0, categories)
-      setCategories(categories || [])
-    } catch (error) {
-      console.error('Error in fetchCategories:', error)
-    }
-  }
-
-  const transactionType = watch('type')
   const isRecurringWatch = watch('is_recurring')
 
   // Filter categories based on search query
   const filteredCategories = query === ''
     ? categories
     : categories.filter((category) =>
-        category.name
-          .toLowerCase()
-          .replace(/\s+/g, '')
-          .includes(query.toLowerCase().replace(/\s+/g, ''))
-      )
+      category.name
+        .toLowerCase()
+        .replace(/\s+/g, '')
+        .includes(query.toLowerCase().replace(/\s+/g, ''))
+    )
 
   const onSubmit = async (data: FormData) => {
     try {
       setLoading(true)
       setError(null)
 
-      if (data.is_recurring) {
-        const {
-          date,
-          is_recurring,
-          frequency,
-          end_date,
-          day_of_month,
-          day_of_week,
-          week_of_month,
-          transfer_account_id,
-          category_id,
-          ...rest
-        } = data
+      if (!user) throw new Error('User not authenticated')
 
-        if (!frequency) {
-          console.error('Frequency is required for recurring transactions')
-          return
+      console.log('Form data:', data)
+
+      // Parse amount to number
+      const amount = parseFloat(data.amount.toString())
+      if (isNaN(amount)) throw new Error('Invalid amount')
+
+      if (data.is_recurring) {
+        const recurringData = {
+          description: data.description,
+          amount: amount,
+          type: data.type,
+          account_id: data.account_id,
+          user_id: user.id,
+          start_date: data.date.toISOString(),
+          next_occurrence: data.date.toISOString(),
+          end_date: data.end_date?.toISOString() || null,
+          frequency: data.frequency,
+          transfer_account_id: data.transfer_account_id || null,
+          category_id: data.category_id || null,
+          day_of_month: data.day_of_month || null,
+          day_of_week: data.day_of_week || null,
+          week_of_month: data.week_of_month || null,
+          active: true
         }
 
-        await supabase.from('recurring_transactions').insert({
-          ...rest,
-          start_date: date.toISOString(),
-          end_date: end_date?.toISOString() || null,
-          frequency,
-          transfer_account_id: transfer_account_id || null,
-          category_id: category_id || null,
-          day_of_month: day_of_month || null,
-          day_of_week: day_of_week || null,
-          week_of_month: week_of_month || null
-        })
+        console.log('Recurring transaction data:', recurringData)
+
+        const { error: insertError } = await supabase
+          .from('recurring_transactions')
+          .insert(recurringData)
+
+        if (insertError) {
+          console.error('Error inserting recurring transaction:', insertError)
+          throw insertError
+        }
+
       } else {
-        const { date, is_recurring, frequency, end_date, day_of_month, day_of_week, week_of_month, ...rest } = data
-        await supabase.from('transactions').insert({
-          ...rest,
-          date: date.toISOString()
-        })
+        const transactionData = {
+          description: data.description,
+          amount: amount,
+          type: data.type,
+          account_id: data.account_id,
+          user_id: user.id,
+          date: data.date.toISOString(),
+          transfer_account_id: data.transfer_account_id || null,
+          category_id: data.category_id || null
+        }
+
+        console.log('Regular transaction data:', transactionData)
+
+        const { error: insertError } = await supabase
+          .from('transactions')
+          .insert(transactionData)
+
+        if (insertError) {
+          console.error('Error inserting transaction:', insertError)
+          throw insertError
+        }
       }
+
+      await refetchTransactions()
       onSuccess()
       onClose()
     } catch (error) {
@@ -481,13 +525,18 @@ export function AddTransactionModal({
                               htmlFor="end_date"
                               className="block text-sm font-medium text-gray-700"
                             >
-                              End Date (Optional)
+                              End Date
                             </label>
                             <input
                               type="date"
+                              id="end_date"
+                              required
                               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                               {...register('end_date')}
                             />
+                            {errors.end_date && (
+                              <p className="text-red-500 text-sm mt-1">{errors.end_date.message}</p>
+                            )}
                           </div>
 
                           {/* Additional Recurring Options based on Frequency */}
